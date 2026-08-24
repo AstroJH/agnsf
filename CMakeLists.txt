@@ -43,6 +43,7 @@ find_package(pybind11 CONFIG REQUIRED)
 add_library(esf
     src/lag_bins.cpp
     src/light_curve.cpp
+    src/light_curve_view.cpp
     src/bin_accumulator.cpp
     src/sf_result.cpp
     src/sf_calculator.cpp

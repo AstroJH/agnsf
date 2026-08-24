@@ -1,18 +1,56 @@
-#include <utility>
-#include <vector>
-
-#include <esf/pair_accumulator.hpp>
 #include <esf/sf_calculator.hpp>
+
+#include <esf/bin_accumulator.hpp>
 
 namespace esf {
 
-SFResult SFCalculator::calculate(
-    const LightCurve& data,
+namespace {
+
+SFResult calculate_impl(
+    const double* time,
+    const double* value,
+    const double* error,
+    std::size_t size,
     const LagBins& bins
-) const
+)
 {
-    const auto accumulators =
-        accumulate_light_curve(data, bins);
+    std::vector<BinAccumulator> accumulators(
+        bins.size()
+    );
+
+    const double min_lag = bins.min();
+    const double max_lag = bins.max();
+
+    for (std::size_t i = 0; i < size; ++i) {
+        for (std::size_t j = i + 1; j < size; ++j) {
+
+            const double lag =
+                time[j] - time[i];
+
+            if (lag >= max_lag) {
+                break;
+            }
+
+            if (lag < min_lag) {
+                continue;
+            }
+
+            std::size_t bin;
+
+            if (!bins.try_index(lag, bin)) {
+                continue;
+            }
+
+            const double delta =
+                value[j] - value[i];
+
+            accumulators[bin].add(
+                delta,
+                error[i],
+                error[j]
+            );
+        }
+    }
 
     std::vector<SFBinResult> results;
     results.reserve(bins.size());
@@ -21,20 +59,47 @@ SFResult SFCalculator::calculate(
 
         SFBinResult result;
 
-        result.count =
-            accumulator.count();
-
-        result.sf_squared =
-            accumulator.sf_squared();
-
-        result.sf =
-            accumulator.sf();
+        result.count = accumulator.count();
+        result.sf_squared = accumulator.sf_squared();
+        result.sf = accumulator.sf();
 
         results.push_back(result);
     }
 
     return SFResult(
         std::move(results)
+    );
+}
+
+} // namespace
+
+
+SFResult SFCalculator::calculate(
+    const LightCurve& data,
+    const LagBins& bins
+) const
+{
+    return calculate_impl(
+        data.time_data(),
+        data.value_data(),
+        data.error_data(),
+        data.size(),
+        bins
+    );
+}
+
+
+SFResult SFCalculator::calculate(
+    const LightCurveView& data,
+    const LagBins& bins
+) const
+{
+    return calculate_impl(
+        data.time_data(),
+        data.value_data(),
+        data.error_data(),
+        data.size(),
+        bins
     );
 }
 
