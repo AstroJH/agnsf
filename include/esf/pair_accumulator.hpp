@@ -5,6 +5,7 @@
 #include <esf/bin_accumulator.hpp>
 #include <esf/lag_bins.hpp>
 #include <esf/light_curve.hpp>
+#include <esf/light_curve_view.hpp>
 
 namespace esf {
 
@@ -30,4 +31,8 @@ std::vector<BinAccumulator> accumulate_light_curve(
     const LagBins& bins
 );
 
+std::vector<BinAccumulator> accumulate_light_curve(
+    const LightCurveView& light_curve,
+    const LagBins& bins
+);
 }

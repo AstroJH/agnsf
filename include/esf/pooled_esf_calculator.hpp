@@ -4,6 +4,7 @@
 
 #include <esf/lag_bins.hpp>
 #include <esf/light_curve.hpp>
+#include <esf/light_curve_view.hpp>
 #include <esf/sf_result.hpp>
 
 namespace esf {
@@ -28,6 +29,11 @@ class PooledESFCalculator {
 public:
     SFResult calculate(
         const std::vector<LightCurve>& data,
+        const LagBins& bins
+    ) const;
+
+    SFResult calculate(
+        const std::vector<LightCurveView>& data,
         const LagBins& bins
     ) const;
 };

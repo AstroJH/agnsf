@@ -10,11 +10,21 @@
 #include <esf/pair_accumulator.hpp>
 
 namespace esf {
+namespace
+{
 
-SFResult PooledESFCalculator::calculate(
-    const std::vector<LightCurve>& data,
+/**
+ * Calculate pooled ESF from light-curve views.
+ *
+ * All pair contributions from all light curves are accumulated
+ * into the same lag bins.
+ *
+ * The light-curve data themselves are never copied.
+ */
+SFResult calculate_pooled(
+    const std::vector<LightCurveView>& data,
     const LagBins& bins
-) const
+)
 {
     /*
      * Each worker processes complete light curves and owns its
@@ -57,6 +67,7 @@ SFResult PooledESFCalculator::calculate(
         );
 
     std::atomic<std::size_t> next_index{0};
+
     std::vector<std::thread> workers;
     workers.reserve(num_threads);
 
@@ -89,7 +100,7 @@ SFResult PooledESFCalculator::calculate(
                         break;
                     }
 
-                    auto result =
+                    const auto result =
                         accumulate_light_curve(
                             data[index],
                             bins
@@ -98,12 +109,6 @@ SFResult PooledESFCalculator::calculate(
                     /*
                      * Each worker writes only to its own entry,
                      * so no lock is needed here.
-                     */
-
-                    /*
-                     * A worker may process multiple light
-                     * curves. Merge each new light curve into
-                     * its local accumulator.
                      */
                     for (std::size_t bin = 0; bin < bins.size(); ++bin) {
 
@@ -151,28 +156,63 @@ SFResult PooledESFCalculator::calculate(
      * SFBinResult objects.
      */
     std::vector<SFBinResult> results;
-
     results.reserve(bins.size());
 
-    for (const auto& accumulator :
-         accumulators) {
+    for (const auto& accumulator : accumulators) {
 
         SFBinResult result;
 
-        result.count =
-            accumulator.count();
-
-        result.sf_squared =
-            accumulator.sf_squared();
-
-        result.sf =
-            accumulator.sf();
+        result.count = accumulator.count();
+        result.sf_squared = accumulator.sf_squared();
+        result.sf = accumulator.sf();
 
         results.push_back(result);
     }
 
     return SFResult(
         std::move(results)
+    );
+}
+} // namespace
+
+
+SFResult PooledESFCalculator::calculate(
+    const std::vector<LightCurve>& data,
+    const LagBins& bins
+) const
+{
+    /*
+     * Convert owning light curves into non-owning views.
+     *
+     * No time/value/error data are copied.
+     */
+    std::vector<LightCurveView> views;
+    views.reserve(data.size());
+
+    for (const auto& light_curve : data) {
+        views.emplace_back(
+            light_curve.time_data(),
+            light_curve.value_data(),
+            light_curve.error_data(),
+            light_curve.size()
+        );
+    }
+
+    return calculate_pooled(
+        views,
+        bins
+    );
+}
+
+
+SFResult PooledESFCalculator::calculate(
+    const std::vector<LightCurveView>& data,
+    const LagBins& bins
+) const
+{
+    return calculate_pooled(
+        data,
+        bins
     );
 }
 

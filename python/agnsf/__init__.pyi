@@ -94,3 +94,12 @@ def sf(
     error: Sequence[float],
     bins: LagBins,
 ) -> SFResult: ...
+
+
+def pooled_sf(
+    time: Sequence[Sequence[float]],
+    value: Sequence[Sequence[float]],
+    error: Sequence[Sequence[float]],
+    bins: LagBins,
+) -> SFResult:
+    ...

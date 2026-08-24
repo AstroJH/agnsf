@@ -4,6 +4,7 @@ from ._agnsf import (
     SFBinResult,
     SFResult,
     sf,
+    pooled_sf
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "SFBinResult",
     "SFResult",
     "sf",
+    "pooled_sf"
 ]

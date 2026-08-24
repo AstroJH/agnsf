@@ -10,6 +10,7 @@
 #include <esf/light_curve.hpp>
 #include <esf/light_curve_view.hpp>
 #include <esf/sf_calculator.hpp>
+#include <esf/pooled_esf_calculator.hpp>
 #include <esf/sf_result.hpp>
 
 namespace py = pybind11;
@@ -339,6 +340,98 @@ Calculate the structure function of a single light curve.
 The input arrays must be one-dimensional, float64, and
 C-contiguous. No data copy is performed by this interface.
         )pbdoc"
+    );
+
+    m.def(
+        "pooled_sf",
+        [](
+            const py::list& times,
+            const py::list& values,
+            const py::list& errors,
+            const esf::LagBins& bins
+        )
+        {
+            if (times.size() != values.size() ||
+                times.size() != errors.size()) {
+
+                throw py::value_error(
+                    "times, values, and errors must contain "
+                    "the same number of light curves"
+                );
+            }
+
+            std::vector<esf::LightCurveView> data;
+            data.reserve(times.size());
+
+            for (std::size_t i = 0; i < times.size(); ++i) {
+
+                auto time =
+                    py::array_t<
+                        double,
+                        py::array::c_style
+                    >::ensure(times[i]);
+
+                auto value =
+                    py::array_t<
+                        double,
+                        py::array::c_style
+                    >::ensure(values[i]);
+
+                auto error =
+                    py::array_t<
+                        double,
+                        py::array::c_style
+                    >::ensure(errors[i]);
+
+                if (!time || !value || !error) {
+                    throw py::type_error(
+                        "all light curves must be convertible "
+                        "to C-contiguous float64 arrays"
+                    );
+                }
+
+                auto time_buffer = time.request();
+                auto value_buffer = value.request();
+                auto error_buffer = error.request();
+
+                if (time_buffer.ndim != 1 ||
+                    value_buffer.ndim != 1 ||
+                    error_buffer.ndim != 1) {
+
+                    throw py::value_error(
+                        "time, value, and error must be "
+                        "1-dimensional"
+                    );
+                }
+
+                if (time_buffer.size != value_buffer.size ||
+                    time_buffer.size != error_buffer.size) {
+
+                    throw py::value_error(
+                        "time, value, and error must have "
+                        "the same length for each light curve"
+                    );
+                }
+
+                data.emplace_back(
+                    static_cast<const double*>(time_buffer.ptr),
+                    static_cast<const double*>(value_buffer.ptr),
+                    static_cast<const double*>(error_buffer.ptr),
+                    static_cast<std::size_t>(time_buffer.size)
+                );
+            }
+
+            esf::PooledESFCalculator calculator;
+
+            return calculator.calculate(
+                data,
+                bins
+            );
+        },
+        py::arg("times"),
+        py::arg("values"),
+        py::arg("errors"),
+        py::arg("bins")
     );
 
 

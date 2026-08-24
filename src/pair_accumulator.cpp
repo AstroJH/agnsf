@@ -5,8 +5,13 @@
 
 namespace esf {
 
-std::vector<BinAccumulator> accumulate_light_curve(
-    const LightCurve& light_curve,
+namespace {
+
+std::vector<BinAccumulator> accumulate_light_curve_impl(
+    const double* time,
+    const double* value,
+    const double* error,
+    std::size_t n,
     const LagBins& bins
 )
 {
@@ -14,33 +19,16 @@ std::vector<BinAccumulator> accumulate_light_curve(
         bins.size()
     );
 
-    const std::size_t n =
-        light_curve.size();
-
-    const double* time =
-        light_curve.time_data();
-
-    const double* value =
-        light_curve.value_data();
-
-    const double* error =
-        light_curve.error_data();
-
-    const double min_lag =
-        bins.min();
-
-    const double max_lag =
-        bins.max();
+    const double min_lag = bins.min();
+    const double max_lag = bins.max();
 
     // The input time array is required to be sorted.
     // Therefore, for fixed i, lag increases monotonically
     // as j increases.
     for (std::size_t i = 0; i < n; ++i) {
-
         for (std::size_t j = i + 1; j < n; ++j) {
 
-            const double lag =
-                time[j] - time[i];
+            const double lag = time[j] - time[i];
 
             // Since time is sorted, all subsequent j values
             // have equal or larger lag.
@@ -58,8 +46,7 @@ std::vector<BinAccumulator> accumulate_light_curve(
                 continue;
             }
 
-            const double delta =
-                value[j] - value[i];
+            const double delta = value[j] - value[i];
 
             accumulators[bin].add(
                 delta,
@@ -72,4 +59,36 @@ std::vector<BinAccumulator> accumulate_light_curve(
     return accumulators;
 }
 
+} // namespace
+
+
+std::vector<BinAccumulator> accumulate_light_curve(
+    const LightCurve& light_curve,
+    const LagBins& bins
+)
+{
+    return accumulate_light_curve_impl(
+        light_curve.time_data(),
+        light_curve.value_data(),
+        light_curve.error_data(),
+        light_curve.size(),
+        bins
+    );
 }
+
+
+std::vector<BinAccumulator> accumulate_light_curve(
+    const LightCurveView& light_curve,
+    const LagBins& bins
+)
+{
+    return accumulate_light_curve_impl(
+        light_curve.time_data(),
+        light_curve.value_data(),
+        light_curve.error_data(),
+        light_curve.size(),
+        bins
+    );
+}
+
+} // namespace esf
