@@ -12,6 +12,7 @@
 #include <esf/sf_calculator.hpp>
 #include <esf/pooled_esf_calculator.hpp>
 #include <esf/sf_result.hpp>
+#include <esf/sf_ensemble_calculator.hpp>
 
 namespace py = pybind11;
 
@@ -35,7 +36,7 @@ esf::LightCurveView make_light_curve_view(
     const auto value_buffer = value.request();
     const auto error_buffer = error.request();
 
-    if (time_buffer.ndim != 1 ||
+    if (time_buffer.ndim  != 1 ||
         value_buffer.ndim != 1 ||
         error_buffer.ndim != 1) {
 
@@ -67,6 +68,102 @@ esf::LightCurveView make_light_curve_view(
         error_ptr,
         static_cast<std::size_t>(time_buffer.size)
     );
+}
+
+// ----------------------------------------------------------------------
+// Convert a list of light curves into zero-copy LightCurveViews.
+//
+// LightCurveView only stores raw pointers.  If ensure() must build a
+// new float64 C-contiguous array (e.g. from a Python list, a float32
+// array, or a non-contiguous slice), that temporary ndarray would be
+// destroyed at the end of the loop iteration.  The owned_* vectors
+// keep every array alive until the caller finishes using the views.
+// ----------------------------------------------------------------------
+
+struct LightCurveBatch {
+    std::vector<esf::LightCurveView> views;
+
+    std::vector<py::array_t<double, py::array::c_style>> owned_times;
+    std::vector<py::array_t<double, py::array::c_style>> owned_values;
+    std::vector<py::array_t<double, py::array::c_style>> owned_errors;
+};
+
+
+LightCurveBatch make_light_curve_batch(
+    const py::list& times,
+    const py::list& values,
+    const py::list& errors
+)
+{
+    if (times.size() != values.size() ||
+        times.size() != errors.size()) {
+
+        throw py::value_error(
+            "times, values, and errors must contain "
+            "the same number of light curves"
+        );
+    }
+
+    LightCurveBatch batch;
+    batch.views.reserve(times.size());
+    batch.owned_times.reserve(times.size());
+    batch.owned_values.reserve(values.size());
+    batch.owned_errors.reserve(errors.size());
+
+    for (std::size_t i = 0; i < times.size(); ++i) {
+        // >> OWNERSHIP WARNING <<
+        // If ensure() created a copy, the temporary ndarray is destroyed
+        // when this loop iteration ends; LightCurveView only keeps raw pointers.
+        // Keep the resulting arrays in owned_* so that their buffers remain valid
+        // until calculate() finishes.
+
+        auto time  = py::array_t<double, py::array::c_style>::ensure(times[i]);
+        auto value = py::array_t<double, py::array::c_style>::ensure(values[i]);
+        auto error = py::array_t<double, py::array::c_style>::ensure(errors[i]);
+
+        batch.owned_times.emplace_back(time);
+        batch.owned_values.emplace_back(value);
+        batch.owned_errors.emplace_back(error);
+
+        if (!time || !value || !error) {
+            throw py::type_error(
+                "all light curves must be convertible "
+                "to C-contiguous float64 arrays"
+            );
+        }
+
+        auto time_buffer  = time.request();
+        auto value_buffer = value.request();
+        auto error_buffer = error.request();
+
+        if (time_buffer.ndim  != 1 ||
+            value_buffer.ndim != 1 ||
+            error_buffer.ndim != 1) {
+
+            throw py::value_error(
+                "time, value, and error must be "
+                "1-dimensional"
+            );
+        }
+
+        if (time_buffer.size != value_buffer.size ||
+            time_buffer.size != error_buffer.size) {
+
+            throw py::value_error(
+                "time, value, and error must have "
+                "the same length for each light curve"
+            );
+        }
+
+        batch.views.emplace_back(
+            static_cast<const double*>(time_buffer.ptr),
+            static_cast<const double*>(value_buffer.ptr),
+            static_cast<const double*>(error_buffer.ptr),
+            static_cast<std::size_t>(time_buffer.size)
+        );
+    }
+
+    return batch;
 }
 
 } // namespace
@@ -351,85 +448,103 @@ C-contiguous. No data copy is performed by this interface.
             const esf::LagBins& bins
         )
         {
-            if (times.size() != values.size() ||
-                times.size() != errors.size()) {
-
-                throw py::value_error(
-                    "times, values, and errors must contain "
-                    "the same number of light curves"
+            const auto batch =
+                make_light_curve_batch(
+                    times,
+                    values,
+                    errors
                 );
-            }
-
-            std::vector<esf::LightCurveView> data;
-            data.reserve(times.size());
-            
-            std::vector<py::array_t<double, py::array::c_style>> owned_times;
-            std::vector<py::array_t<double, py::array::c_style>> owned_values;
-            std::vector<py::array_t<double, py::array::c_style>> owned_errors;
-            owned_times.reserve(times.size());
-            owned_values.reserve(values.size());
-            owned_errors.reserve(errors.size());
-
-            for (std::size_t i = 0; i < times.size(); ++i) {
-                // >> OWNERSHIP WARNING <<
-                // If ensure() created a copy, the temporary ndarray is destroyed
-                // when this loop iteration ends; LightCurveView only keeps raw pointers.
-                // Keep the resulting arrays in owned_* so that their buffers remain valid
-                // until calculate() finishes.
-
-                auto time  = py::array_t<double, py::array::c_style>::ensure(times[i]);
-                auto value = py::array_t<double, py::array::c_style>::ensure(values[i]);
-                auto error = py::array_t<double, py::array::c_style>::ensure(errors[i]);
-                
-                owned_times.emplace_back(time);
-                owned_values.emplace_back(value);
-                owned_errors.emplace_back(error);
-
-                if (!time || !value || !error) {
-                    throw py::type_error(
-                        "all light curves must be convertible "
-                        "to C-contiguous float64 arrays"
-                    );
-                }
-
-                auto time_buffer  = time.request();
-                auto value_buffer = value.request();
-                auto error_buffer = error.request();
-
-                if (time_buffer.ndim  != 1 ||
-                    value_buffer.ndim != 1 ||
-                    error_buffer.ndim != 1) {
-
-                    throw py::value_error(
-                        "time, value, and error must be "
-                        "1-dimensional"
-                    );
-                }
-
-                if (time_buffer.size != value_buffer.size ||
-                    time_buffer.size != error_buffer.size) {
-
-                    throw py::value_error(
-                        "time, value, and error must have "
-                        "the same length for each light curve"
-                    );
-                }
-
-                data.emplace_back(
-                    static_cast<const double*>(time_buffer.ptr),
-                    static_cast<const double*>(value_buffer.ptr),
-                    static_cast<const double*>(error_buffer.ptr),
-                    static_cast<std::size_t>(time_buffer.size)
-                );
-            }
 
             esf::PooledESFCalculator calculator;
-            return calculator.calculate(data, bins);
+
+            return calculator.calculate(
+                batch.views,
+                bins
+            );
         },
         py::arg("times"),
         py::arg("values"),
         py::arg("errors"),
         py::arg("bins")
+    );
+
+
+    // ------------------------------------------------------------------
+    // EnsembleMethod
+    // ------------------------------------------------------------------
+
+    py::enum_<esf::SFEnsembleCalculator::Method>(
+        m,
+        "EnsembleMethod"
+    )
+        .value(
+            "SqrtMeanSquared",
+            esf::SFEnsembleCalculator::Method::SqrtMeanSquared
+        )
+        .value(
+            "MeanSf",
+            esf::SFEnsembleCalculator::Method::MeanSf
+        );
+
+
+    // ------------------------------------------------------------------
+    // Aggregated ensemble SF
+    //
+    // Computes an SF for each light curve and combines the individual
+    // SF values according to the chosen method:
+    //
+    //   SqrtMeanSquared:  ESF = sqrt( <SF^2> )
+    //   MeanSf:           ESF = <SF>
+    //
+    // The same zero-copy / lifetime-safe view handling as pooled_sf
+    // is used.
+    // ------------------------------------------------------------------
+
+    m.def(
+        "ensemble_sf",
+        [](
+            const py::list& times,
+            const py::list& values,
+            const py::list& errors,
+            const esf::LagBins& bins,
+            esf::SFEnsembleCalculator::Method method
+        )
+        {
+            const auto batch =
+                make_light_curve_batch(
+                    times,
+                    values,
+                    errors
+                );
+
+            esf::SFEnsembleCalculator calculator;
+
+            return calculator.calculate(
+                batch.views,
+                bins,
+                method
+            );
+        },
+        py::arg("times"),
+        py::arg("values"),
+        py::arg("errors"),
+        py::arg("bins"),
+        py::arg("method") =
+            esf::SFEnsembleCalculator::Method::SqrtMeanSquared,
+        R"pbdoc(
+Calculate the aggregated ensemble structure function.
+
+An SF is computed independently for each light curve and the
+individual SF values are combined per lag bin.
+
+method: EnsembleMethod.SqrtMeanSquared (default)
+            ESF(tau) = sqrt( <SF_k^2(tau)>_k )
+        EnsembleMethod.MeanSf
+            ESF(tau) = <SF_k(tau)>_k
+
+Only light curves with a finite contribution are included in
+each lag bin. Each contributing light curve is weighted equally.
+        )pbdoc"
     );
 
 

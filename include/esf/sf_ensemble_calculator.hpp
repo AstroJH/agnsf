@@ -10,25 +10,48 @@
 namespace esf {
 
 /**
- * Ensemble SF obtained by first computing an SF for each
- * light curve and then averaging the individual SF values.
+ * Ensemble SF obtained by first computing an SF for each light
+ * curve and then combining the individual SF values.
  *
- * For each lag bin, only light curves with a finite SF
- * contribute to the mean.
- * 
- * ESF^2 = <SF^2>
- * 
+ * Two combination methods are supported:
+ *
+ *   SqrtMeanSquared (default):
+ *
+ *       ESF(tau) = sqrt( <SF_k^2(tau)>_k )
+ *
+ *     For each lag bin, light curves with a finite SF^2
+ *     contribute to the mean.
+ *
+ *   MeanSf:
+ *
+ *       ESF(tau) = <SF_k(tau)>_k
+ *
+ *     For each lag bin, light curves with a finite SF
+ *     contribute to the mean.
+ *
+ * Each contributing light curve is weighted equally within
+ * each lag bin.
  */
 class SFEnsembleCalculator {
 public:
+    enum class Method {
+        // ESF(tau) = sqrt( <SF_k^2(tau)>_k )
+        SqrtMeanSquared,
+
+        // ESF(tau) = <SF_k(tau)>_k
+        MeanSf
+    };
+
     SFResult calculate(
         const std::vector<LightCurve>& data,
-        const LagBins& bins
+        const LagBins& bins,
+        Method method = Method::SqrtMeanSquared
     ) const;
 
     SFResult calculate(
         const std::vector<LightCurveView>& data,
-        const LagBins& bins
+        const LagBins& bins,
+        Method method = Method::SqrtMeanSquared
     ) const;
 };
 

@@ -26,16 +26,35 @@ LightCurveView make_view(
 }
 
 
+/**
+ * Turn accumulated per-bin statistics into an SFResult.
+ *
+ * For SqrtMeanSquared, sum holds the sum of per-curve SF^2 values
+ * and the result is:
+ *
+ *   SF^2 = sum / count
+ *   SF   = sqrt(SF^2)
+ *
+ * For MeanSf, sum holds the sum of per-curve SF values and the
+ * result is:
+ *
+ *   SF   = sum / count
+ *   SF^2 = SF^2
+ *
+ * The SF^2 field is kept consistent with SF in both modes so that
+ * sf = sqrt(sf_squared) always holds for finite results.
+ */
 SFResult make_result(
-    const std::vector<double>& sum_sf_squared,
-    const std::vector<std::size_t>& count
+    const std::vector<double>& sum,
+    const std::vector<std::size_t>& count,
+    SFEnsembleCalculator::Method method
 )
 {
     std::vector<SFBinResult> results;
-    results.reserve(sum_sf_squared.size());
+    results.reserve(sum.size());
 
     for (std::size_t i = 0;
-         i < sum_sf_squared.size();
+         i < sum.size();
          ++i) {
 
         SFBinResult result;
@@ -49,10 +68,19 @@ SFResult make_result(
             result.sf =
                 std::numeric_limits<double>::quiet_NaN();
 
+        } else if (method == SFEnsembleCalculator::Method::MeanSf) {
+
+            result.sf =
+                sum[i] /
+                static_cast<double>(count[i]);
+
+            result.sf_squared =
+                result.sf * result.sf;
+
         } else {
 
             result.sf_squared =
-                sum_sf_squared[i] /
+                sum[i] /
                 static_cast<double>(count[i]);
 
             result.sf =
@@ -68,12 +96,13 @@ SFResult make_result(
 
 SFResult calculate_ensemble(
     const std::vector<LightCurveView>& data,
-    const LagBins& bins
+    const LagBins& bins,
+    SFEnsembleCalculator::Method method
 )
 {
     if (data.empty()) {
 
-        const std::vector<double> sum_sf_squared(
+        const std::vector<double> sum(
             bins.size(),
             0.0
         );
@@ -84,8 +113,9 @@ SFResult calculate_ensemble(
         );
 
         return make_result(
-            sum_sf_squared,
-            count
+            sum,
+            count,
+            method
         );
     }
 
@@ -138,7 +168,7 @@ SFResult calculate_ensemble(
             );
 
         threads.emplace_back(
-            [&, thread_id, begin, end]() {
+            [&, thread_id, begin, end, method]() {
 
                 SFCalculator sf_calculator;
 
@@ -156,15 +186,22 @@ SFResult calculate_ensemble(
                          j < bins.size();
                          ++j) {
 
-                        const double sf_squared =
-                            result.bin(j).sf_squared;
+                        /*
+                         * SqrtMeanSquared averages per-curve SF^2.
+                         * MeanSf averages per-curve SF instead.
+                         */
+                        const double contribution =
+                            method ==
+                                SFEnsembleCalculator::Method::MeanSf
+                                ? result.bin(j).sf
+                                : result.bin(j).sf_squared;
 
-                        if (!std::isfinite(sf_squared)) {
+                        if (!std::isfinite(contribution)) {
                             continue;
                         }
 
                         thread_sum[thread_id][j] +=
-                            sf_squared;
+                            contribution;
 
                         ++thread_count[thread_id][j];
                     }
@@ -182,7 +219,7 @@ SFResult calculate_ensemble(
     /*
      * Merge thread-local results.
      */
-    std::vector<double> sum_sf_squared(
+    std::vector<double> sum(
         bins.size(),
         0.0
     );
@@ -200,7 +237,7 @@ SFResult calculate_ensemble(
              i < bins.size();
              ++i) {
 
-            sum_sf_squared[i] +=
+            sum[i] +=
                 thread_sum[thread_id][i];
 
             count[i] +=
@@ -209,8 +246,9 @@ SFResult calculate_ensemble(
     }
 
     return make_result(
-        sum_sf_squared,
-        count
+        sum,
+        count,
+        method
     );
 }
 
@@ -219,7 +257,8 @@ SFResult calculate_ensemble(
 
 SFResult SFEnsembleCalculator::calculate(
     const std::vector<LightCurve>& data,
-    const LagBins& bins
+    const LagBins& bins,
+    Method method
 ) const
 {
     std::vector<LightCurveView> views;
@@ -233,19 +272,22 @@ SFResult SFEnsembleCalculator::calculate(
 
     return calculate(
         views,
-        bins
+        bins,
+        method
     );
 }
 
 
 SFResult SFEnsembleCalculator::calculate(
     const std::vector<LightCurveView>& data,
-    const LagBins& bins
+    const LagBins& bins,
+    Method method
 ) const
 {
     return calculate_ensemble(
         data,
-        bins
+        bins,
+        method
     );
 }
 

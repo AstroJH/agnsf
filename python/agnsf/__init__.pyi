@@ -1,6 +1,11 @@
 from typing import Sequence
 
 
+class EnsembleMethod:
+    SqrtMeanSquared: EnsembleMethod
+    MeanSf: EnsembleMethod
+
+
 class SFBinResult:
     count: int
     sf_squared: float
@@ -101,5 +106,13 @@ def pooled_sf(
     value: Sequence[Sequence[float]],
     error: Sequence[Sequence[float]],
     bins: LagBins,
-) -> SFResult:
-    ...
+) -> SFResult: ...
+
+
+def ensemble_sf(
+    time: Sequence[Sequence[float]],
+    value: Sequence[Sequence[float]],
+    error: Sequence[Sequence[float]],
+    bins: LagBins,
+    method: EnsembleMethod = EnsembleMethod.SqrtMeanSquared,
+) -> SFResult: ...

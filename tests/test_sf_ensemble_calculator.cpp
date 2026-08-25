@@ -33,6 +33,276 @@ void check_close(
 } // namespace
 
 
+
+void test_mean_sf_mode()
+{
+    /*
+     * lc_signal:  strong signal -> positive SF everywhere.
+     * lc_noise:   pure noise -> negative SF^2, so SF is NaN.
+     * lc_short:   only one pair in bin 1 -> bin 0 has no pairs.
+     */
+    const esf::LightCurve lc_signal(
+        {0.0, 1.0, 2.0},
+        {0.0, 10.0, 20.0},
+        {0.0, 0.0, 0.0}
+    );
+
+    const esf::LightCurve lc_noise(
+        {0.0, 1.0, 2.0},
+        {0.0, 0.0, 0.0},
+        {1.0, 1.0, 1.0}
+    );
+
+    const esf::LightCurve lc_short(
+        {0.0, 2.0},
+        {0.0, 4.0},
+        {0.0, 0.0}
+    );
+
+    const std::vector<esf::LightCurve> data = {
+        lc_signal,
+        lc_noise,
+        lc_short
+    };
+
+    const esf::LagBins bins({
+        0.0,
+        1.5,
+        3.0
+    });
+
+    esf::SFEnsembleCalculator ensemble_calculator;
+    esf::SFCalculator sf_calculator;
+
+    const std::vector<esf::SFResult> individual = {
+        sf_calculator.calculate(lc_signal, bins),
+        sf_calculator.calculate(lc_noise, bins),
+        sf_calculator.calculate(lc_short, bins)
+    };
+
+    /*
+     * Sanity check the individual SFs used below:
+     *
+     *   lc_signal: bin0 SF^2=100  SF=10
+     *              bin1 SF^2=400  SF=20
+     *
+     *   lc_noise:  bin0 SF^2=-2   SF=NaN
+     *              bin1 SF^2=-2   SF=NaN
+     *
+     *   lc_short:  bin0 no pairs  -> SF^2=NaN  SF=NaN
+     *              bin1 SF^2=16   SF=4
+     */
+    assert(
+        std::abs(
+            individual[0].bin(0).sf_squared - 100.0
+        ) < 1e-12
+    );
+    assert(
+        std::abs(
+            individual[0].bin(1).sf_squared - 400.0
+        ) < 1e-12
+    );
+    assert(
+        std::abs(
+            individual[1].bin(0).sf_squared + 2.0
+        ) < 1e-12
+    );
+    assert(
+        std::isnan(individual[1].bin(0).sf)
+    );
+    assert(
+        std::isnan(individual[2].bin(0).sf_squared)
+    );
+    assert(
+        std::abs(
+            individual[2].bin(1).sf_squared - 16.0
+        ) < 1e-12
+    );
+
+
+    /*
+     * MeanSf mode:
+     *
+     *   ESF = <SF_k>
+     *
+     * Only curves with a finite SF contribute.  lc_noise has
+     * NaN SF in both bins, so it is excluded from both means.
+     */
+    const esf::SFResult mean_sf =
+        ensemble_calculator.calculate(
+            data,
+            bins,
+            esf::SFEnsembleCalculator::Method::MeanSf
+        );
+
+    {
+        const auto& bin = mean_sf.bin(0);
+
+        assert(bin.count == 1);
+        check_close(bin.sf, 10.0);
+        check_close(bin.sf_squared, 100.0);
+    }
+
+    {
+        const auto& bin = mean_sf.bin(1);
+
+        // (20 + 4) / 2 = 12
+        assert(bin.count == 2);
+        check_close(bin.sf, 12.0);
+        check_close(bin.sf_squared, 144.0);
+    }
+
+
+    /*
+     * SqrtMeanSquared mode:
+     *
+     *   ESF = sqrt(<SF^2>)
+     *
+     * Negative finite SF^2 values are kept.  lc_short has no
+     * pairs in bin 0, so it is excluded there.
+     */
+    const esf::SFResult sqrt_mean_squared =
+        ensemble_calculator.calculate(
+            data,
+            bins,
+            esf::SFEnsembleCalculator::Method::SqrtMeanSquared
+        );
+
+    {
+        const auto& bin = sqrt_mean_squared.bin(0);
+
+        // (100 + (-2)) / 2 = 49
+        assert(bin.count == 2);
+        check_close(bin.sf_squared, 49.0);
+        check_close(bin.sf, 7.0);
+    }
+
+    {
+        const auto& bin = sqrt_mean_squared.bin(1);
+
+        // (400 + (-2) + 16) / 3 = 138
+        assert(bin.count == 3);
+        check_close(bin.sf_squared, 138.0);
+        check_close(bin.sf, std::sqrt(138.0));
+    }
+
+
+    /*
+     * The default method must be SqrtMeanSquared.
+     */
+    const esf::SFResult default_result =
+        ensemble_calculator.calculate(
+            data,
+            bins
+        );
+
+    for (std::size_t i = 0;
+         i < bins.size();
+         ++i) {
+
+        assert(
+            default_result.bin(i).count ==
+            sqrt_mean_squared.bin(i).count
+        );
+
+        check_close(
+            default_result.bin(i).sf_squared,
+            sqrt_mean_squared.bin(i).sf_squared
+        );
+    }
+
+
+    /*
+     * LightCurveView interface must agree with the owning
+     * LightCurve interface for both methods.
+     */
+    const std::vector<esf::LightCurveView> views = {
+        esf::LightCurveView(
+            lc_signal.time_data(),
+            lc_signal.value_data(),
+            lc_signal.error_data(),
+            lc_signal.size()
+        ),
+        esf::LightCurveView(
+            lc_noise.time_data(),
+            lc_noise.value_data(),
+            lc_noise.error_data(),
+            lc_noise.size()
+        ),
+        esf::LightCurveView(
+            lc_short.time_data(),
+            lc_short.value_data(),
+            lc_short.error_data(),
+            lc_short.size()
+        )
+    };
+
+    const esf::SFResult mean_sf_views =
+        ensemble_calculator.calculate(
+            views,
+            bins,
+            esf::SFEnsembleCalculator::Method::MeanSf
+        );
+
+    for (std::size_t i = 0;
+         i < bins.size();
+         ++i) {
+
+        assert(
+            mean_sf_views.bin(i).count ==
+            mean_sf.bin(i).count
+        );
+
+        if (mean_sf.bin(i).count == 0) {
+            assert(
+                std::isnan(mean_sf_views.bin(i).sf)
+            );
+            continue;
+        }
+
+        check_close(
+            mean_sf_views.bin(i).sf,
+            mean_sf.bin(i).sf
+        );
+
+        check_close(
+            mean_sf_views.bin(i).sf_squared,
+            mean_sf.bin(i).sf_squared
+        );
+    }
+
+
+    /*
+     * Empty input.
+     */
+    const std::vector<esf::LightCurve> empty_data;
+
+    const esf::SFResult empty_mean_sf =
+        ensemble_calculator.calculate(
+            empty_data,
+            bins,
+            esf::SFEnsembleCalculator::Method::MeanSf
+        );
+
+    assert(
+        empty_mean_sf.size() == bins.size()
+    );
+
+    for (std::size_t i = 0;
+         i < empty_mean_sf.size();
+         ++i) {
+
+        assert(empty_mean_sf.bin(i).count == 0);
+        assert(
+            std::isnan(empty_mean_sf.bin(i).sf_squared)
+        );
+        assert(
+            std::isnan(empty_mean_sf.bin(i).sf)
+        );
+    }
+}
+
+
 int main()
 {
     /*
@@ -331,6 +601,9 @@ int main()
             )
         );
     }
+
+
+    test_mean_sf_mode();
 
 
     return 0;
