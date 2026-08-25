@@ -4,6 +4,7 @@
 
 #include <esf/lag_bins.hpp>
 #include <esf/light_curve.hpp>
+#include <esf/light_curve_view.hpp>
 #include <esf/sf_result.hpp>
 
 namespace esf {
@@ -14,11 +15,19 @@ namespace esf {
  *
  * For each lag bin, only light curves with a finite SF
  * contribute to the mean.
+ * 
+ * ESF^2 = <SF^2>
+ * 
  */
 class SFEnsembleCalculator {
 public:
     SFResult calculate(
         const std::vector<LightCurve>& data,
+        const LagBins& bins
+    ) const;
+
+    SFResult calculate(
+        const std::vector<LightCurveView>& data,
         const LagBins& bins
     ) const;
 };
