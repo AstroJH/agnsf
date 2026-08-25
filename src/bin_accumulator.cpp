@@ -12,19 +12,13 @@ void BinAccumulator::add(
     double error_j
 ) noexcept
 {
-    const double delta_squared =
-        delta * delta;
-
+    const double delta_squared = delta * delta;
     const double noise =
         error_i * error_i +
         error_j * error_j;
 
-    sum_delta_squared_ +=
-        delta_squared;
-
-    sum_noise_ +=
-        noise;
-
+    sum_delta_squared_ += delta_squared;
+    sum_noise_ += noise;
     ++count_;
 }
 
@@ -33,13 +27,11 @@ void BinAccumulator::merge(
     const BinAccumulator& other
 ) noexcept
 {
+    // If other is a nullptr?
+
     count_ += other.count_;
-
-    sum_delta_squared_ +=
-        other.sum_delta_squared_;
-
-    sum_noise_ +=
-        other.sum_noise_;
+    sum_delta_squared_ += other.sum_delta_squared_;
+    sum_noise_ += other.sum_noise_;
 }
 
 
@@ -71,6 +63,7 @@ BinAccumulator::sf_squared() const noexcept
         return std::numeric_limits<double>::quiet_NaN();
     }
 
+    // SF^2 = [sum(delta^2) - sum_noise] / N
     return (
         sum_delta_squared_ -
         sum_noise_
@@ -81,9 +74,9 @@ BinAccumulator::sf_squared() const noexcept
 double
 BinAccumulator::sf() const noexcept
 {
-    const double value =
-        sf_squared();
+    const double value = sf_squared();
 
+    // SF^2 < 0 -> SF = NaN
     if (!std::isfinite(value) || value < 0.0) {
         return std::numeric_limits<double>::quiet_NaN();
     }

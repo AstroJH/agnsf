@@ -362,26 +362,28 @@ C-contiguous. No data copy is performed by this interface.
 
             std::vector<esf::LightCurveView> data;
             data.reserve(times.size());
+            
+            std::vector<py::array_t<double, py::array::c_style>> owned_times;
+            std::vector<py::array_t<double, py::array::c_style>> owned_values;
+            std::vector<py::array_t<double, py::array::c_style>> owned_errors;
+            owned_times.reserve(times.size());
+            owned_values.reserve(values.size());
+            owned_errors.reserve(errors.size());
 
             for (std::size_t i = 0; i < times.size(); ++i) {
+                // >> OWNERSHIP WARNING <<
+                // If ensure() created a copy, the temporary ndarray is destroyed
+                // when this loop iteration ends; LightCurveView only keeps raw pointers.
+                // Keep the resulting arrays in owned_* so that their buffers remain valid
+                // until calculate() finishes.
 
-                auto time =
-                    py::array_t<
-                        double,
-                        py::array::c_style
-                    >::ensure(times[i]);
-
-                auto value =
-                    py::array_t<
-                        double,
-                        py::array::c_style
-                    >::ensure(values[i]);
-
-                auto error =
-                    py::array_t<
-                        double,
-                        py::array::c_style
-                    >::ensure(errors[i]);
+                auto time  = py::array_t<double, py::array::c_style>::ensure(times[i]);
+                auto value = py::array_t<double, py::array::c_style>::ensure(values[i]);
+                auto error = py::array_t<double, py::array::c_style>::ensure(errors[i]);
+                
+                owned_times.emplace_back(time);
+                owned_values.emplace_back(value);
+                owned_errors.emplace_back(error);
 
                 if (!time || !value || !error) {
                     throw py::type_error(
@@ -390,11 +392,11 @@ C-contiguous. No data copy is performed by this interface.
                     );
                 }
 
-                auto time_buffer = time.request();
+                auto time_buffer  = time.request();
                 auto value_buffer = value.request();
                 auto error_buffer = error.request();
 
-                if (time_buffer.ndim != 1 ||
+                if (time_buffer.ndim  != 1 ||
                     value_buffer.ndim != 1 ||
                     error_buffer.ndim != 1) {
 
@@ -422,11 +424,7 @@ C-contiguous. No data copy is performed by this interface.
             }
 
             esf::PooledESFCalculator calculator;
-
-            return calculator.calculate(
-                data,
-                bins
-            );
+            return calculator.calculate(data, bins);
         },
         py::arg("times"),
         py::arg("values"),
