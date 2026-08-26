@@ -7,12 +7,17 @@
 #include <pybind11/stl.h>
 
 #include <esf/lag_bins.hpp>
-#include <esf/light_curve.hpp>
-#include <esf/light_curve_view.hpp>
+#include <core/light_curve.hpp>
+#include <core/light_curve.hpp>
 #include <esf/sf_calculator.hpp>
 #include <esf/pooled_esf_calculator.hpp>
 #include <esf/sf_result.hpp>
 #include <esf/sf_ensemble_calculator.hpp>
+#include <esf/sf_io.hpp>
+
+#include <io/light_curve.hpp>
+#include <io/path_list.hpp>
+#include <io/table_writer.hpp>
 
 namespace py = pybind11;
 
@@ -26,7 +31,7 @@ using Float64Array =
 // Validate three input arrays and construct a zero-copy LightCurveView.
 // ----------------------------------------------------------------------
 
-esf::LightCurveView make_light_curve_view(
+agnsf::LightCurveView make_light_curve_view(
     const Float64Array& time,
     const Float64Array& value,
     const Float64Array& error
@@ -62,7 +67,7 @@ esf::LightCurveView make_light_curve_view(
     const auto* error_ptr =
         static_cast<const double*>(error_buffer.ptr);
 
-    return esf::LightCurveView(
+    return agnsf::LightCurveView(
         time_ptr,
         value_ptr,
         error_ptr,
@@ -81,7 +86,7 @@ esf::LightCurveView make_light_curve_view(
 // ----------------------------------------------------------------------
 
 struct LightCurveBatch {
-    std::vector<esf::LightCurveView> views;
+    std::vector<agnsf::LightCurveView> views;
 
     std::vector<py::array_t<double, py::array::c_style>> owned_times;
     std::vector<py::array_t<double, py::array::c_style>> owned_values;
@@ -178,18 +183,18 @@ PYBIND11_MODULE(_agnsf, m)
     // SFBinResult
     // ------------------------------------------------------------------
 
-    py::class_<esf::SFBinResult>(m, "SFBinResult")
+    py::class_<agnsf::esf::SFBinResult>(m, "SFBinResult")
         .def_readonly(
             "count",
-            &esf::SFBinResult::count
+            &agnsf::esf::SFBinResult::count
         )
         .def_readonly(
             "sf_squared",
-            &esf::SFBinResult::sf_squared
+            &agnsf::esf::SFBinResult::sf_squared
         )
         .def_readonly(
             "sf",
-            &esf::SFBinResult::sf
+            &agnsf::esf::SFBinResult::sf
         );
 
 
@@ -197,14 +202,14 @@ PYBIND11_MODULE(_agnsf, m)
     // SFResult
     // ------------------------------------------------------------------
 
-    py::class_<esf::SFResult>(m, "SFResult")
+    py::class_<agnsf::esf::SFResult>(m, "SFResult")
         .def(
             "__len__",
-            &esf::SFResult::size
+            &agnsf::esf::SFResult::size
         )
         .def(
             "__getitem__",
-            [](const esf::SFResult& result, py::ssize_t index)
+            [](const agnsf::esf::SFResult& result, py::ssize_t index)
             {
                 const py::ssize_t size =
                     static_cast<py::ssize_t>(result.size());
@@ -227,7 +232,7 @@ PYBIND11_MODULE(_agnsf, m)
         )
         .def_property_readonly(
             "bins",
-            &esf::SFResult::bins
+            &agnsf::esf::SFResult::bins
         );
 
 
@@ -235,23 +240,23 @@ PYBIND11_MODULE(_agnsf, m)
     // LagBins
     // ------------------------------------------------------------------
 
-    py::class_<esf::LagBins> lag_bins(m, "LagBins");
+    py::class_<agnsf::esf::LagBins> lag_bins(m, "LagBins");
 
-    py::enum_<esf::LagBins::GridType>(
+    py::enum_<agnsf::esf::LagBins::GridType>(
         lag_bins,
         "GridType"
     )
         .value(
             "Custom",
-            esf::LagBins::GridType::Custom
+            agnsf::esf::LagBins::GridType::Custom
         )
         .value(
             "Linear",
-            esf::LagBins::GridType::Linear
+            agnsf::esf::LagBins::GridType::Linear
         )
         .value(
             "Logarithmic",
-            esf::LagBins::GridType::Logarithmic
+            agnsf::esf::LagBins::GridType::Logarithmic
         );
 
     lag_bins
@@ -261,25 +266,25 @@ PYBIND11_MODULE(_agnsf, m)
         )
         .def_static(
             "linear",
-            &esf::LagBins::linear,
+            &agnsf::esf::LagBins::linear,
             py::arg("min"),
             py::arg("max"),
             py::arg("step")
         )
         .def_static(
             "logarithmic",
-            &esf::LagBins::logarithmic,
+            &agnsf::esf::LagBins::logarithmic,
             py::arg("min"),
             py::arg("max"),
             py::arg("step")
         )
         .def(
             "__len__",
-            &esf::LagBins::size
+            &agnsf::esf::LagBins::size
         )
         .def(
             "__getitem__",
-            [](const esf::LagBins& bins, py::ssize_t index)
+            [](const agnsf::esf::LagBins& bins, py::ssize_t index)
             {
                 const py::ssize_t size =
                     static_cast<py::ssize_t>(bins.size());
@@ -305,32 +310,32 @@ PYBIND11_MODULE(_agnsf, m)
         )
         .def_property_readonly(
             "grid_type",
-            &esf::LagBins::grid_type
+            &agnsf::esf::LagBins::grid_type
         )
         .def_property_readonly(
             "min",
-            &esf::LagBins::min
+            &agnsf::esf::LagBins::min
         )
         .def_property_readonly(
             "max",
-            &esf::LagBins::max
+            &agnsf::esf::LagBins::max
         )
         .def_property_readonly(
             "size",
-            &esf::LagBins::size
+            &agnsf::esf::LagBins::size
         )
         .def_property_readonly(
             "edges",
-            &esf::LagBins::edges
+            &agnsf::esf::LagBins::edges
         )
         .def(
             "contains",
-            &esf::LagBins::contains,
+            &agnsf::esf::LagBins::contains,
             py::arg("lag")
         )
         .def(
             "index",
-            &esf::LagBins::index,
+            &agnsf::esf::LagBins::index,
             py::arg("lag")
         );
 
@@ -339,7 +344,7 @@ PYBIND11_MODULE(_agnsf, m)
     // LightCurve
     // ------------------------------------------------------------------
 
-    py::class_<esf::LightCurve>(m, "LightCurve")
+    py::class_<agnsf::LightCurve>(m, "LightCurve")
         .def(
             py::init<
                 std::vector<double>,
@@ -352,19 +357,19 @@ PYBIND11_MODULE(_agnsf, m)
         )
         .def_property_readonly(
             "size",
-            &esf::LightCurve::size
+            &agnsf::LightCurve::size
         )
         .def_property_readonly(
             "time",
-            &esf::LightCurve::time
+            &agnsf::LightCurve::time
         )
         .def_property_readonly(
             "value",
-            &esf::LightCurve::value
+            &agnsf::LightCurve::value
         )
         .def_property_readonly(
             "error",
-            &esf::LightCurve::error
+            &agnsf::LightCurve::error
         );
 
 
@@ -372,22 +377,22 @@ PYBIND11_MODULE(_agnsf, m)
     // LightCurveView
     // ------------------------------------------------------------------
 
-    py::class_<esf::LightCurveView>(m, "LightCurveView")
+    py::class_<agnsf::LightCurveView>(m, "LightCurveView")
         .def_property_readonly(
             "size",
-            &esf::LightCurveView::size
+            &agnsf::LightCurveView::size
         )
         .def_property_readonly(
             "time_address",
-            &esf::LightCurveView::time_address
+            &agnsf::LightCurveView::time_address
         )
         .def_property_readonly(
             "value_address",
-            &esf::LightCurveView::value_address
+            &agnsf::LightCurveView::value_address
         )
         .def_property_readonly(
             "error_address",
-            &esf::LightCurveView::error_address
+            &agnsf::LightCurveView::error_address
         );
 
 
@@ -395,25 +400,25 @@ PYBIND11_MODULE(_agnsf, m)
     // SFMethod
     // ------------------------------------------------------------------
 
-    py::enum_<esf::SFMethod>(
+    py::enum_<agnsf::esf::SFMethod>(
         m,
         "SFMethod"
     )
         .value(
             "SecondOrder",
-            esf::SFMethod::SecondOrder
+            agnsf::esf::SFMethod::SecondOrder
         )
         .value(
             "SecondOrderNoNoise",
-            esf::SFMethod::SecondOrderNoNoise
+            agnsf::esf::SFMethod::SecondOrderNoNoise
         )
         .value(
             "MeanAbsoluteDeviation",
-            esf::SFMethod::MeanAbsoluteDeviation
+            agnsf::esf::SFMethod::MeanAbsoluteDeviation
         )
         .value(
             "MeanAbsoluteDeviationNoNoise",
-            esf::SFMethod::MeanAbsoluteDeviationNoNoise
+            agnsf::esf::SFMethod::MeanAbsoluteDeviationNoNoise
         );
 
 
@@ -436,8 +441,8 @@ PYBIND11_MODULE(_agnsf, m)
             const Float64Array& time,
             const Float64Array& value,
             const Float64Array& error,
-            const esf::LagBins& bins,
-            esf::SFMethod method
+            const agnsf::esf::LagBins& bins,
+            agnsf::esf::SFMethod method
         )
         {
             const auto light_curve =
@@ -447,7 +452,7 @@ PYBIND11_MODULE(_agnsf, m)
                     error
                 );
 
-            esf::SFCalculator calculator;
+            agnsf::esf::SFCalculator calculator;
 
             return calculator.calculate(
                 light_curve,
@@ -460,7 +465,7 @@ PYBIND11_MODULE(_agnsf, m)
         py::arg("error"),
         py::arg("bins"),
         py::arg("method") =
-            esf::SFMethod::SecondOrder,
+            agnsf::esf::SFMethod::SecondOrder,
         R"pbdoc(
 Calculate the structure function of a single light curve.
 
@@ -484,8 +489,8 @@ method: SFMethod.SecondOrder (default)
             const py::list& times,
             const py::list& values,
             const py::list& errors,
-            const esf::LagBins& bins,
-            esf::SFMethod method
+            const agnsf::esf::LagBins& bins,
+            agnsf::esf::SFMethod method
         )
         {
             const auto batch =
@@ -495,7 +500,7 @@ method: SFMethod.SecondOrder (default)
                     errors
                 );
 
-            esf::PooledESFCalculator calculator;
+            agnsf::esf::PooledESFCalculator calculator;
 
             return calculator.calculate(
                 batch.views,
@@ -508,7 +513,7 @@ method: SFMethod.SecondOrder (default)
         py::arg("errors"),
         py::arg("bins"),
         py::arg("method") =
-            esf::SFMethod::SecondOrder,
+            agnsf::esf::SFMethod::SecondOrder,
         R"pbdoc(
 Calculate the pooled ensemble structure function.
 
@@ -522,17 +527,17 @@ lag bins. See sf() for the available SFMethod estimators.
     // EnsembleMethod
     // ------------------------------------------------------------------
 
-    py::enum_<esf::SFEnsembleCalculator::Method>(
+    py::enum_<agnsf::esf::SFEnsembleCalculator::Method>(
         m,
         "EnsembleMethod"
     )
         .value(
             "SqrtMeanSquared",
-            esf::SFEnsembleCalculator::Method::SqrtMeanSquared
+            agnsf::esf::SFEnsembleCalculator::Method::SqrtMeanSquared
         )
         .value(
             "MeanSf",
-            esf::SFEnsembleCalculator::Method::MeanSf
+            agnsf::esf::SFEnsembleCalculator::Method::MeanSf
         );
 
 
@@ -555,9 +560,9 @@ lag bins. See sf() for the available SFMethod estimators.
             const py::list& times,
             const py::list& values,
             const py::list& errors,
-            const esf::LagBins& bins,
-            esf::SFEnsembleCalculator::Method method,
-            esf::SFMethod sf_method
+            const agnsf::esf::LagBins& bins,
+            agnsf::esf::SFEnsembleCalculator::Method method,
+            agnsf::esf::SFMethod sf_method
         )
         {
             const auto batch =
@@ -567,7 +572,7 @@ lag bins. See sf() for the available SFMethod estimators.
                     errors
                 );
 
-            esf::SFEnsembleCalculator calculator;
+            agnsf::esf::SFEnsembleCalculator calculator;
 
             return calculator.calculate(
                 batch.views,
@@ -581,9 +586,9 @@ lag bins. See sf() for the available SFMethod estimators.
         py::arg("errors"),
         py::arg("bins"),
         py::arg("method") =
-            esf::SFEnsembleCalculator::Method::SqrtMeanSquared,
+            agnsf::esf::SFEnsembleCalculator::Method::SqrtMeanSquared,
         py::arg("sf_method") =
-            esf::SFMethod::SecondOrder,
+            agnsf::esf::SFMethod::SecondOrder,
         R"pbdoc(
 Calculate the aggregated ensemble structure function.
 
@@ -601,6 +606,320 @@ sf_method: SFMethod.SecondOrder (default)
 
 Only light curves with a finite contribution are included in
 each lag bin. Each contributing light curve is weighted equally.
+        )pbdoc"
+    );
+
+
+    // ------------------------------------------------------------------
+    // File IO
+    // ------------------------------------------------------------------
+
+    m.def(
+        "read_light_curve",
+        [](
+            const std::string& path,
+            const std::string& time,
+            const std::string& value,
+            const std::string& error
+        )
+        {
+            agnsf::io::ColumnNames columns;
+            columns.time = time;
+            columns.value = value;
+            columns.error = error;
+
+            return agnsf::io::read_light_curve(
+                path,
+                columns
+            );
+        },
+        py::arg("path"),
+        py::arg("time") = "time",
+        py::arg("value") = "value",
+        py::arg("error") = "error",
+        R"pbdoc(
+Read a light curve from a CSV or FITS file.
+
+The format is chosen from the file extension (.csv, .fits, .fit,
+.fits.gz, .fit.gz). Columns are located by name for files with a
+header; otherwise the first three columns are used.
+
+Returns a LightCurve with time, value, and error.
+        )pbdoc"
+    );
+
+    m.def(
+        "read_path_list",
+        [](
+            const std::string& path
+        )
+        {
+            return agnsf::io::read_path_list(path);
+        },
+        py::arg("path"),
+        R"pbdoc(
+Read a list of file paths from a text file (one per line, '#' comments
+and blank lines are ignored).
+        )pbdoc"
+    );
+
+    m.def(
+        "write_table",
+        [](
+            const std::string& path,
+            const std::vector<std::string>& headers,
+            const std::vector<std::vector<double>>& columns
+        )
+        {
+            agnsf::io::write_table(path, headers, columns);
+        },
+        py::arg("path"),
+        py::arg("headers"),
+        py::arg("columns"),
+        R"pbdoc(
+Write columns of numbers to a simple text file.
+
+The first line is '# header_1 header_2 ...' followed by one row per
+line with space-separated values.
+        )pbdoc"
+    );
+
+
+    // ------------------------------------------------------------------
+    // File-based SF / ESF convenience functions
+    // ------------------------------------------------------------------
+
+    m.def(
+        "sf_from_file",
+        [](
+            const std::string& path,
+            const agnsf::esf::LagBins& bins,
+            agnsf::esf::SFMethod method,
+            const std::string& time,
+            const std::string& value,
+            const std::string& error
+        )
+        {
+            agnsf::io::ColumnNames columns;
+            columns.time = time;
+            columns.value = value;
+            columns.error = error;
+
+            return agnsf::esf::sf_from_file(
+                path,
+                bins,
+                method,
+                columns
+            );
+        },
+        py::arg("path"),
+        py::arg("bins"),
+        py::arg("method") =
+            agnsf::esf::SFMethod::SecondOrder,
+        py::arg("time") = "time",
+        py::arg("value") = "value",
+        py::arg("error") = "error",
+        R"pbdoc(
+Calculate the structure function of one light-curve file (CSV or FITS).
+
+path:  light-curve file
+bins:  LagBins
+method: SFMethod estimator (see sf())
+        )pbdoc"
+    );
+
+    m.def(
+        "pooled_sf_from_files",
+        [](
+            const py::list& paths,
+            const agnsf::esf::LagBins& bins,
+            agnsf::esf::SFMethod method,
+            const std::string& time,
+            const std::string& value,
+            const std::string& error
+        )
+        {
+            std::vector<std::string> path_vector;
+            path_vector.reserve(paths.size());
+
+            for (const auto item : paths) {
+                path_vector.push_back(
+                    py::cast<std::string>(item)
+                );
+            }
+
+            agnsf::io::ColumnNames columns;
+            columns.time = time;
+            columns.value = value;
+            columns.error = error;
+
+            return agnsf::esf::pooled_sf_from_files(
+                path_vector,
+                bins,
+                method,
+                columns
+            );
+        },
+        py::arg("paths"),
+        py::arg("bins"),
+        py::arg("method") =
+            agnsf::esf::SFMethod::SecondOrder,
+        py::arg("time") = "time",
+        py::arg("value") = "value",
+        py::arg("error") = "error",
+        R"pbdoc(
+Calculate the pooled ensemble structure function from a list of
+light-curve files (CSV or FITS).
+        )pbdoc"
+    );
+
+    m.def(
+        "pooled_sf_from_path_list",
+        [](
+            const std::string& path_list_file,
+            const agnsf::esf::LagBins& bins,
+            agnsf::esf::SFMethod method,
+            const std::string& time,
+            const std::string& value,
+            const std::string& error
+        )
+        {
+            agnsf::io::ColumnNames columns;
+            columns.time = time;
+            columns.value = value;
+            columns.error = error;
+
+            return agnsf::esf::pooled_sf_from_path_list(
+                path_list_file,
+                bins,
+                method,
+                columns
+            );
+        },
+        py::arg("path_list_file"),
+        py::arg("bins"),
+        py::arg("method") =
+            agnsf::esf::SFMethod::SecondOrder,
+        py::arg("time") = "time",
+        py::arg("value") = "value",
+        py::arg("error") = "error",
+        R"pbdoc(
+Calculate the pooled ensemble structure function from a text file that
+lists the light-curve paths (one per line).
+        )pbdoc"
+    );
+
+    m.def(
+        "ensemble_sf_from_files",
+        [](
+            const py::list& paths,
+            const agnsf::esf::LagBins& bins,
+            agnsf::esf::SFEnsembleCalculator::Method method,
+            agnsf::esf::SFMethod sf_method,
+            const std::string& time,
+            const std::string& value,
+            const std::string& error
+        )
+        {
+            std::vector<std::string> path_vector;
+            path_vector.reserve(paths.size());
+
+            for (const auto item : paths) {
+                path_vector.push_back(
+                    py::cast<std::string>(item)
+                );
+            }
+
+            agnsf::io::ColumnNames columns;
+            columns.time = time;
+            columns.value = value;
+            columns.error = error;
+
+            return agnsf::esf::ensemble_sf_from_files(
+                path_vector,
+                bins,
+                sf_method,
+                method,
+                columns
+            );
+        },
+        py::arg("paths"),
+        py::arg("bins"),
+        py::arg("method") =
+            agnsf::esf::SFEnsembleCalculator::Method::SqrtMeanSquared,
+        py::arg("sf_method") =
+            agnsf::esf::SFMethod::SecondOrder,
+        py::arg("time") = "time",
+        py::arg("value") = "value",
+        py::arg("error") = "error",
+        R"pbdoc(
+Calculate the aggregated ensemble structure function from a list of
+light-curve files (CSV or FITS).
+
+method:    EnsembleMethod combination method
+sf_method: SFMethod per-curve estimator
+        )pbdoc"
+    );
+
+    m.def(
+        "ensemble_sf_from_path_list",
+        [](
+            const std::string& path_list_file,
+            const agnsf::esf::LagBins& bins,
+            agnsf::esf::SFEnsembleCalculator::Method method,
+            agnsf::esf::SFMethod sf_method,
+            const std::string& time,
+            const std::string& value,
+            const std::string& error
+        )
+        {
+            agnsf::io::ColumnNames columns;
+            columns.time = time;
+            columns.value = value;
+            columns.error = error;
+
+            return agnsf::esf::ensemble_sf_from_path_list(
+                path_list_file,
+                bins,
+                sf_method,
+                method,
+                columns
+            );
+        },
+        py::arg("path_list_file"),
+        py::arg("bins"),
+        py::arg("method") =
+            agnsf::esf::SFEnsembleCalculator::Method::SqrtMeanSquared,
+        py::arg("sf_method") =
+            agnsf::esf::SFMethod::SecondOrder,
+        py::arg("time") = "time",
+        py::arg("value") = "value",
+        py::arg("error") = "error",
+        R"pbdoc(
+Calculate the aggregated ensemble structure function from a text file
+that lists the light-curve paths (one per line).
+        )pbdoc"
+    );
+
+    m.def(
+        "write_sf_result",
+        [](
+            const std::string& path,
+            const agnsf::esf::LagBins& bins,
+            const agnsf::esf::SFResult& result
+        )
+        {
+            agnsf::esf::write_sf_result(path, bins, result);
+        },
+        py::arg("path"),
+        py::arg("bins"),
+        py::arg("result"),
+        R"pbdoc(
+Write an SFResult to a simple text file.
+
+Columns:
+
+  # lag count sf_squared sf
         )pbdoc"
     );
 

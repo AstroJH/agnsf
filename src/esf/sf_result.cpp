@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <utility>
 
+namespace agnsf {
 namespace esf {
 
 SFResult::SFResult(
@@ -40,3 +41,4 @@ SFResult::bins() const noexcept
 }
 
 } // namespace esf
+} // namespace agnsf

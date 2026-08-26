@@ -3,6 +3,7 @@
 
 #include <esf/pair_accumulator.hpp>
 
+namespace agnsf {
 namespace esf {
 
 namespace {
@@ -63,7 +64,7 @@ std::vector<BinAccumulator> accumulate_light_curve_impl(
 
 
 std::vector<BinAccumulator> accumulate_light_curve(
-    const LightCurve& light_curve,
+    const agnsf::LightCurve& light_curve,
     const LagBins& bins
 )
 {
@@ -78,7 +79,7 @@ std::vector<BinAccumulator> accumulate_light_curve(
 
 
 std::vector<BinAccumulator> accumulate_light_curve(
-    const LightCurveView& light_curve,
+    const agnsf::LightCurveView& light_curve,
     const LagBins& bins
 )
 {
@@ -92,3 +93,4 @@ std::vector<BinAccumulator> accumulate_light_curve(
 }
 
 } // namespace esf
+} // namespace agnsf

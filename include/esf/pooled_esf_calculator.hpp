@@ -4,10 +4,10 @@
 
 #include <esf/sf_method.hpp>
 #include <esf/lag_bins.hpp>
-#include <esf/light_curve.hpp>
-#include <esf/light_curve_view.hpp>
+#include <core/light_curve.hpp>
 #include <esf/sf_result.hpp>
 
+namespace agnsf {
 namespace esf {
 
 /**
@@ -32,16 +32,17 @@ namespace esf {
 class PooledESFCalculator {
 public:
     SFResult calculate(
-        const std::vector<LightCurve>& data,
+        const std::vector<agnsf::LightCurve>& data,
         const LagBins& bins,
         SFMethod method = SFMethod::SecondOrder
     ) const;
 
     SFResult calculate(
-        const std::vector<LightCurveView>& data,
+        const std::vector<agnsf::LightCurveView>& data,
         const LagBins& bins,
         SFMethod method = SFMethod::SecondOrder
     ) const;
 };
 
 } // namespace esf
+} // namespace agnsf

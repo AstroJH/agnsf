@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <utility>
 
+namespace agnsf {
 namespace esf {
 
 LagBins::LagBins(
@@ -251,3 +252,4 @@ std::size_t LagBins::index(double lag) const
 }
 
 } // namespace esf
+} // namespace agnsf

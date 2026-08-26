@@ -4,8 +4,8 @@
 #include <vector>
 
 #include <esf/lag_bins.hpp>
-#include <esf/light_curve.hpp>
-#include <esf/light_curve_view.hpp>
+#include <core/light_curve.hpp>
+#include <core/light_curve.hpp>
 #include <esf/sf_calculator.hpp>
 #include <esf/sf_ensemble_calculator.hpp>
 
@@ -41,40 +41,40 @@ void test_mean_sf_mode()
      * lc_noise:   pure noise -> negative SF^2, so SF is NaN.
      * lc_short:   only one pair in bin 1 -> bin 0 has no pairs.
      */
-    const esf::LightCurve lc_signal(
+    const agnsf::LightCurve lc_signal(
         {0.0, 1.0, 2.0},
         {0.0, 10.0, 20.0},
         {0.0, 0.0, 0.0}
     );
 
-    const esf::LightCurve lc_noise(
+    const agnsf::LightCurve lc_noise(
         {0.0, 1.0, 2.0},
         {0.0, 0.0, 0.0},
         {1.0, 1.0, 1.0}
     );
 
-    const esf::LightCurve lc_short(
+    const agnsf::LightCurve lc_short(
         {0.0, 2.0},
         {0.0, 4.0},
         {0.0, 0.0}
     );
 
-    const std::vector<esf::LightCurve> data = {
+    const std::vector<agnsf::LightCurve> data = {
         lc_signal,
         lc_noise,
         lc_short
     };
 
-    const esf::LagBins bins({
+    const agnsf::esf::LagBins bins({
         0.0,
         1.5,
         3.0
     });
 
-    esf::SFEnsembleCalculator ensemble_calculator;
-    esf::SFCalculator sf_calculator;
+    agnsf::esf::SFEnsembleCalculator ensemble_calculator;
+    agnsf::esf::SFCalculator sf_calculator;
 
-    const std::vector<esf::SFResult> individual = {
+    const std::vector<agnsf::esf::SFResult> individual = {
         sf_calculator.calculate(lc_signal, bins),
         sf_calculator.calculate(lc_noise, bins),
         sf_calculator.calculate(lc_short, bins)
@@ -128,12 +128,12 @@ void test_mean_sf_mode()
      * Only curves with a finite SF contribute.  lc_noise has
      * NaN SF in both bins, so it is excluded from both means.
      */
-    const esf::SFResult mean_sf =
+    const agnsf::esf::SFResult mean_sf =
         ensemble_calculator.calculate(
             data,
             bins,
-            esf::SFMethod::SecondOrder,
-            esf::SFEnsembleCalculator::Method::MeanSf
+            agnsf::esf::SFMethod::SecondOrder,
+            agnsf::esf::SFEnsembleCalculator::Method::MeanSf
         );
 
     {
@@ -162,12 +162,12 @@ void test_mean_sf_mode()
      * Negative finite SF^2 values are kept.  lc_short has no
      * pairs in bin 0, so it is excluded there.
      */
-    const esf::SFResult sqrt_mean_squared =
+    const agnsf::esf::SFResult sqrt_mean_squared =
         ensemble_calculator.calculate(
             data,
             bins,
-            esf::SFMethod::SecondOrder,
-            esf::SFEnsembleCalculator::Method::SqrtMeanSquared
+            agnsf::esf::SFMethod::SecondOrder,
+            agnsf::esf::SFEnsembleCalculator::Method::SqrtMeanSquared
         );
 
     {
@@ -192,7 +192,7 @@ void test_mean_sf_mode()
     /*
      * The default method must be SqrtMeanSquared.
      */
-    const esf::SFResult default_result =
+    const agnsf::esf::SFResult default_result =
         ensemble_calculator.calculate(
             data,
             bins
@@ -218,20 +218,20 @@ void test_mean_sf_mode()
      * LightCurveView interface must agree with the owning
      * LightCurve interface for both methods.
      */
-    const std::vector<esf::LightCurveView> views = {
-        esf::LightCurveView(
+    const std::vector<agnsf::LightCurveView> views = {
+        agnsf::LightCurveView(
             lc_signal.time_data(),
             lc_signal.value_data(),
             lc_signal.error_data(),
             lc_signal.size()
         ),
-        esf::LightCurveView(
+        agnsf::LightCurveView(
             lc_noise.time_data(),
             lc_noise.value_data(),
             lc_noise.error_data(),
             lc_noise.size()
         ),
-        esf::LightCurveView(
+        agnsf::LightCurveView(
             lc_short.time_data(),
             lc_short.value_data(),
             lc_short.error_data(),
@@ -239,12 +239,12 @@ void test_mean_sf_mode()
         )
     };
 
-    const esf::SFResult mean_sf_views =
+    const agnsf::esf::SFResult mean_sf_views =
         ensemble_calculator.calculate(
             views,
             bins,
-            esf::SFMethod::SecondOrder,
-            esf::SFEnsembleCalculator::Method::MeanSf
+            agnsf::esf::SFMethod::SecondOrder,
+            agnsf::esf::SFEnsembleCalculator::Method::MeanSf
         );
 
     for (std::size_t i = 0;
@@ -278,14 +278,14 @@ void test_mean_sf_mode()
     /*
      * Empty input.
      */
-    const std::vector<esf::LightCurve> empty_data;
+    const std::vector<agnsf::LightCurve> empty_data;
 
-    const esf::SFResult empty_mean_sf =
+    const agnsf::esf::SFResult empty_mean_sf =
         ensemble_calculator.calculate(
             empty_data,
             bins,
-            esf::SFMethod::SecondOrder,
-            esf::SFEnsembleCalculator::Method::MeanSf
+            agnsf::esf::SFMethod::SecondOrder,
+            agnsf::esf::SFEnsembleCalculator::Method::MeanSf
         );
 
     assert(
@@ -316,41 +316,41 @@ void test_sf_method_variants()
      * lc_a: delta = 2  ->  SF^2 = pi/2 * 2^2 = 2*pi
      * lc_b: delta = 4  ->  SF^2 = pi/2 * 4^2 = 8*pi
      */
-    const esf::LightCurve lc_a(
+    const agnsf::LightCurve lc_a(
         {0.0, 1.0},
         {0.0, 2.0},
         {0.0, 0.0}
     );
 
-    const esf::LightCurve lc_b(
+    const agnsf::LightCurve lc_b(
         {0.0, 1.0},
         {0.0, 4.0},
         {0.0, 0.0}
     );
 
-    const std::vector<esf::LightCurve> data = {
+    const std::vector<agnsf::LightCurve> data = {
         lc_a,
         lc_b
     };
 
-    const esf::LagBins bins({
+    const agnsf::esf::LagBins bins({
         0.0,
         1.5
     });
 
-    esf::SFEnsembleCalculator ensemble_calculator;
+    agnsf::esf::SFEnsembleCalculator ensemble_calculator;
 
     /*
      * SqrtMeanSquared with MeanAbsoluteDeviation per-curve SF:
      *
      *   ESF^2 = <SF^2> = (2*pi + 8*pi) / 2 = 5*pi
      */
-    const esf::SFResult rms =
+    const agnsf::esf::SFResult rms =
         ensemble_calculator.calculate(
             data,
             bins,
-            esf::SFMethod::MeanAbsoluteDeviation,
-            esf::SFEnsembleCalculator::Method::SqrtMeanSquared
+            agnsf::esf::SFMethod::MeanAbsoluteDeviation,
+            agnsf::esf::SFEnsembleCalculator::Method::SqrtMeanSquared
         );
 
     assert(rms.bin(0).count == 2);
@@ -368,12 +368,12 @@ void test_sf_method_variants()
      *
      *   ESF = <SF> = (sqrt(2*pi) + sqrt(8*pi)) / 2
      */
-    const esf::SFResult mean =
+    const agnsf::esf::SFResult mean =
         ensemble_calculator.calculate(
             data,
             bins,
-            esf::SFMethod::MeanAbsoluteDeviation,
-            esf::SFEnsembleCalculator::Method::MeanSf
+            agnsf::esf::SFMethod::MeanAbsoluteDeviation,
+            agnsf::esf::SFEnsembleCalculator::Method::MeanSf
         );
 
     assert(mean.bin(0).count == 2);
@@ -395,12 +395,12 @@ void test_sf_method_variants()
      *
      *   ESF^2 = <SF^2> = (4 + 16) / 2 = 10
      */
-    const esf::SFResult no_noise =
+    const agnsf::esf::SFResult no_noise =
         ensemble_calculator.calculate(
             data,
             bins,
-            esf::SFMethod::SecondOrderNoNoise,
-            esf::SFEnsembleCalculator::Method::SqrtMeanSquared
+            agnsf::esf::SFMethod::SecondOrderNoNoise,
+            agnsf::esf::SFEnsembleCalculator::Method::SqrtMeanSquared
         );
 
     assert(no_noise.bin(0).count == 2);
@@ -422,7 +422,7 @@ int main()
      * All times are sorted.
      */
 
-    const esf::LightCurve lc1(
+    const agnsf::LightCurve lc1(
         {
             0.0, 0.8, 1.7, 3.1, 4.0,
             5.6, 7.2, 8.1, 10.0, 12.5
@@ -437,7 +437,7 @@ int main()
         }
     );
 
-    const esf::LightCurve lc2(
+    const agnsf::LightCurve lc2(
         {
             0.2, 1.0, 2.4, 3.0, 4.8,
             6.0, 7.5, 9.3, 11.0
@@ -452,7 +452,7 @@ int main()
         }
     );
 
-    const esf::LightCurve lc3(
+    const agnsf::LightCurve lc3(
         {
             0.0, 1.5, 2.0, 4.2, 5.0,
             6.8, 8.9, 10.5, 13.0, 15.0,
@@ -470,7 +470,7 @@ int main()
         }
     );
 
-    const esf::LightCurve lc4(
+    const agnsf::LightCurve lc4(
         {
             0.4, 1.1, 2.8, 4.0, 5.7,
             8.0, 10.2, 12.0, 14.5
@@ -485,7 +485,7 @@ int main()
         }
     );
 
-    const std::vector<esf::LightCurve> data = {
+    const std::vector<agnsf::LightCurve> data = {
         lc1,
         lc2,
         lc3,
@@ -499,7 +499,7 @@ int main()
      * The largest bins will naturally contain fewer
      * pairs for some light curves.
      */
-    const esf::LagBins bins = esf::LagBins::linear(
+    const agnsf::esf::LagBins bins = agnsf::esf::LagBins::linear(
         0.5,
         8.5,
         1.0
@@ -509,9 +509,9 @@ int main()
     /*
      * Calculate the ensemble SF.
      */
-    esf::SFEnsembleCalculator ensemble_calculator;
+    agnsf::esf::SFEnsembleCalculator ensemble_calculator;
 
-    const esf::SFResult ensemble =
+    const agnsf::esf::SFResult ensemble =
         ensemble_calculator.calculate(
             data,
             bins
@@ -521,9 +521,9 @@ int main()
     /*
      * Independently calculate the individual SFs.
      */
-    esf::SFCalculator sf_calculator;
+    agnsf::esf::SFCalculator sf_calculator;
 
-    const std::vector<esf::SFResult> individual = {
+    const std::vector<agnsf::esf::SFResult> individual = {
         sf_calculator.calculate(lc1, bins),
         sf_calculator.calculate(lc2, bins),
         sf_calculator.calculate(lc3, bins),
@@ -604,26 +604,26 @@ int main()
      * Check that the LightCurveView interface produces
      * exactly the same result.
      */
-    const std::vector<esf::LightCurveView> views = {
-        esf::LightCurveView(
+    const std::vector<agnsf::LightCurveView> views = {
+        agnsf::LightCurveView(
             lc1.time_data(),
             lc1.value_data(),
             lc1.error_data(),
             lc1.size()
         ),
-        esf::LightCurveView(
+        agnsf::LightCurveView(
             lc2.time_data(),
             lc2.value_data(),
             lc2.error_data(),
             lc2.size()
         ),
-        esf::LightCurveView(
+        agnsf::LightCurveView(
             lc3.time_data(),
             lc3.value_data(),
             lc3.error_data(),
             lc3.size()
         ),
-        esf::LightCurveView(
+        agnsf::LightCurveView(
             lc4.time_data(),
             lc4.value_data(),
             lc4.error_data(),
@@ -631,7 +631,7 @@ int main()
         )
     };
 
-    const esf::SFResult ensemble_from_views =
+    const agnsf::esf::SFResult ensemble_from_views =
         ensemble_calculator.calculate(
             views,
             bins
@@ -675,9 +675,9 @@ int main()
     /*
      * Empty input.
      */
-    const std::vector<esf::LightCurve> empty_data;
+    const std::vector<agnsf::LightCurve> empty_data;
 
-    const esf::SFResult empty_result =
+    const agnsf::esf::SFResult empty_result =
         ensemble_calculator.calculate(
             empty_data,
             bins

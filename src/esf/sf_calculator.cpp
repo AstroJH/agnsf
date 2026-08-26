@@ -2,6 +2,7 @@
 
 #include <esf/bin_accumulator.hpp>
 
+namespace agnsf {
 namespace esf {
 
 namespace {
@@ -76,7 +77,7 @@ SFResult calculate_impl(
 
 
 SFResult SFCalculator::calculate(
-    const LightCurve& data,
+    const agnsf::LightCurve& data,
     const LagBins& bins,
     SFMethod method
 ) const
@@ -93,7 +94,7 @@ SFResult SFCalculator::calculate(
 
 
 SFResult SFCalculator::calculate(
-    const LightCurveView& data,
+    const agnsf::LightCurveView& data,
     const LagBins& bins,
     SFMethod method
 ) const
@@ -109,3 +110,4 @@ SFResult SFCalculator::calculate(
 }
 
 } // namespace esf
+} // namespace agnsf

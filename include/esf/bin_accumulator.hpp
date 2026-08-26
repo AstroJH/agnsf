@@ -4,6 +4,7 @@
 
 #include <esf/sf_method.hpp>
 
+namespace agnsf {
 namespace esf {
 
 /**
@@ -117,3 +118,4 @@ private:
 };
 
 } // namespace esf
+} // namespace agnsf

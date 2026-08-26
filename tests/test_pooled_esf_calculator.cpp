@@ -3,36 +3,36 @@
 #include <vector>
 
 #include <esf/lag_bins.hpp>
-#include <esf/light_curve.hpp>
+#include <core/light_curve.hpp>
 #include <esf/pooled_esf_calculator.hpp>
 
 namespace {
 
 void test_pooled_pairs()
 {
-    esf::LightCurve lc1(
+    agnsf::LightCurve lc1(
         {0.0, 1.0},
         {0.0, 1.0},
         {0.0, 0.0}
     );
 
-    esf::LightCurve lc2(
+    agnsf::LightCurve lc2(
         {0.0, 1.0},
         {0.0, 2.0},
         {0.0, 0.0}
     );
 
-    std::vector<esf::LightCurve> data{
+    std::vector<agnsf::LightCurve> data{
         lc1,
         lc2
     };
 
-    esf::LagBins bins({
+    agnsf::esf::LagBins bins({
         0.0,
         2.0
     });
 
-    esf::PooledESFCalculator calculator;
+    agnsf::esf::PooledESFCalculator calculator;
 
     const auto result =
         calculator.calculate(data, bins);
@@ -68,29 +68,29 @@ void test_pooled_methods()
 {
     constexpr double kPi = 3.14159265358979323846;
 
-    esf::LightCurve lc1(
+    agnsf::LightCurve lc1(
         {0.0, 1.0},
         {0.0, 1.0},
         {0.1, 0.1}
     );
 
-    esf::LightCurve lc2(
+    agnsf::LightCurve lc2(
         {0.0, 1.0},
         {0.0, 2.0},
         {0.1, 0.1}
     );
 
-    std::vector<esf::LightCurve> data{
+    std::vector<agnsf::LightCurve> data{
         lc1,
         lc2
     };
 
-    esf::LagBins bins({
+    agnsf::esf::LagBins bins({
         0.0,
         2.0
     });
 
-    esf::PooledESFCalculator calculator;
+    agnsf::esf::PooledESFCalculator calculator;
 
     /*
      * Pooled statistics:
@@ -105,7 +105,7 @@ void test_pooled_methods()
             calculator.calculate(
                 data,
                 bins,
-                esf::SFMethod::SecondOrder
+                agnsf::esf::SFMethod::SecondOrder
             );
 
         const auto& bin = result.bin(0);
@@ -123,7 +123,7 @@ void test_pooled_methods()
             calculator.calculate(
                 data,
                 bins,
-                esf::SFMethod::SecondOrderNoNoise
+                agnsf::esf::SFMethod::SecondOrderNoNoise
             );
 
         const auto& bin = result.bin(0);
@@ -141,7 +141,7 @@ void test_pooled_methods()
             calculator.calculate(
                 data,
                 bins,
-                esf::SFMethod::MeanAbsoluteDeviation
+                agnsf::esf::SFMethod::MeanAbsoluteDeviation
             );
 
         const auto& bin = result.bin(0);
@@ -161,7 +161,7 @@ void test_pooled_methods()
             calculator.calculate(
                 data,
                 bins,
-                esf::SFMethod::MeanAbsoluteDeviationNoNoise
+                agnsf::esf::SFMethod::MeanAbsoluteDeviationNoNoise
             );
 
         const auto& bin = result.bin(0);

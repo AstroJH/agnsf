@@ -2,27 +2,27 @@
 #include <cmath>
 
 #include <esf/lag_bins.hpp>
-#include <esf/light_curve.hpp>
+#include <core/light_curve.hpp>
 #include <esf/sf_calculator.hpp>
 
 namespace {
 
 void test_simple_linear_signal()
 {
-    esf::LightCurve data(
+    agnsf::LightCurve data(
         {0.0, 1.0, 2.0, 3.0},
         {0.0, 1.0, 2.0, 3.0},
         {0.0, 0.0, 0.0, 0.0}
     );
 
-    esf::LagBins bins({
+    agnsf::esf::LagBins bins({
         0.0,
         1.5,
         2.5,
         4.0
     });
 
-    esf::SFCalculator calculator;
+    agnsf::esf::SFCalculator calculator;
 
     const auto result =
         calculator.calculate(data, bins);
@@ -81,19 +81,19 @@ void test_simple_linear_signal()
 
 void test_noise_correction()
 {
-    esf::LightCurve data(
+    agnsf::LightCurve data(
         {0.0, 1.0, 2.0},
         {0.0, 1.0, 2.0},
         {0.1, 0.1, 0.1}
     );
 
-    esf::LagBins bins({
+    agnsf::esf::LagBins bins({
         0.0,
         1.5,
         3.0
     });
 
-    esf::SFCalculator calculator;
+    agnsf::esf::SFCalculator calculator;
 
     const auto result =
         calculator.calculate(data, bins);
@@ -123,20 +123,20 @@ void test_noise_correction()
 
 void test_bin_boundaries()
 {
-    esf::LightCurve data(
+    agnsf::LightCurve data(
         {0.0, 1.0, 2.0},
         {0.0, 1.0, 2.0},
         {0.0, 0.0, 0.0}
     );
 
-    esf::LagBins bins({
+    agnsf::esf::LagBins bins({
         0.0,
         1.0,
         2.0,
         3.0
     });
 
-    esf::SFCalculator calculator;
+    agnsf::esf::SFCalculator calculator;
 
     const auto result =
         calculator.calculate(data, bins);
@@ -153,25 +153,25 @@ void test_methods()
 {
     constexpr double kPi = 3.14159265358979323846;
 
-    esf::LightCurve data(
+    agnsf::LightCurve data(
         {0.0, 1.0, 2.0},
         {0.0, 1.0, 2.0},
         {0.1, 0.1, 0.1}
     );
 
-    esf::LagBins bins({
+    agnsf::esf::LagBins bins({
         0.0,
         1.5,
         3.0
     });
 
-    esf::SFCalculator calculator;
+    agnsf::esf::SFCalculator calculator;
 
     const auto result =
         calculator.calculate(
             data,
             bins,
-            esf::SFMethod::MeanAbsoluteDeviation
+            agnsf::esf::SFMethod::MeanAbsoluteDeviation
         );
 
     /*
@@ -220,7 +220,7 @@ void test_methods()
         calculator.calculate(
             data,
             bins,
-            esf::SFMethod::SecondOrderNoNoise
+            agnsf::esf::SFMethod::SecondOrderNoNoise
         );
 
     // Bin 0: 2 / 2 = 1
@@ -241,7 +241,7 @@ void test_methods()
         calculator.calculate(
             data,
             bins,
-            esf::SFMethod::MeanAbsoluteDeviationNoNoise
+            agnsf::esf::SFMethod::MeanAbsoluteDeviationNoNoise
         );
 
     // Bin 0: pi/2

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <vector>
 
+namespace agnsf {
 namespace esf {
 
 class LagBins {
@@ -59,3 +60,4 @@ private:
 };
 
 } // namespace esf
+} // namespace agnsf

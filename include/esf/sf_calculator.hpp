@@ -3,9 +3,9 @@
 #include <esf/sf_method.hpp>
 #include <esf/sf_result.hpp>
 #include <esf/lag_bins.hpp>
-#include <esf/light_curve.hpp>
-#include <esf/light_curve_view.hpp>
+#include <core/light_curve.hpp>
 
+namespace agnsf {
 namespace esf {
 
 /**
@@ -17,16 +17,17 @@ namespace esf {
 class SFCalculator {
 public:
     SFResult calculate(
-        const LightCurve& data,
+        const agnsf::LightCurve& data,
         const LagBins& bins,
         SFMethod method = SFMethod::SecondOrder
     ) const;
 
     SFResult calculate(
-        const LightCurveView& data,
+        const agnsf::LightCurveView& data,
         const LagBins& bins,
         SFMethod method = SFMethod::SecondOrder
     ) const;
 };
 
 } // namespace esf
+} // namespace agnsf

@@ -9,6 +9,7 @@
 #include <esf/bin_accumulator.hpp>
 #include <esf/pair_accumulator.hpp>
 
+namespace agnsf {
 namespace esf {
 namespace
 {
@@ -22,7 +23,7 @@ namespace
  * The light-curve data themselves are never copied.
  */
 SFResult calculate_pooled(
-    const std::vector<LightCurveView>& data,
+    const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
     SFMethod method
 )
@@ -178,7 +179,7 @@ SFResult calculate_pooled(
 
 
 SFResult PooledESFCalculator::calculate(
-    const std::vector<LightCurve>& data,
+    const std::vector<agnsf::LightCurve>& data,
     const LagBins& bins,
     SFMethod method
 ) const
@@ -188,16 +189,11 @@ SFResult PooledESFCalculator::calculate(
      *
      * No time/value/error data are copied.
      */
-    std::vector<LightCurveView> views;
+    std::vector<agnsf::LightCurveView> views;
     views.reserve(data.size());
 
     for (const auto& light_curve : data) {
-        views.emplace_back(
-            light_curve.time_data(),
-            light_curve.value_data(),
-            light_curve.error_data(),
-            light_curve.size()
-        );
+        views.push_back(light_curve.view());
     }
 
     return calculate_pooled(
@@ -209,7 +205,7 @@ SFResult PooledESFCalculator::calculate(
 
 
 SFResult PooledESFCalculator::calculate(
-    const std::vector<LightCurveView>& data,
+    const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
     SFMethod method
 ) const
@@ -222,3 +218,4 @@ SFResult PooledESFCalculator::calculate(
 }
 
 } // namespace esf
+} // namespace agnsf

@@ -2,6 +2,8 @@
 requires = [
     "scikit-build-core>=0.10",
     "pybind11>=2.11",
+    "cmake>=3.16",
+    "ninja",
 ]
 build-backend = "scikit_build_core.build"
 
@@ -10,9 +12,18 @@ build-backend = "scikit_build_core.build"
 name = "agnsf"
 version = "0.1.0"
 description = "Astronomical structure function analysis"
+readme = "README.md"
+license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+]
 
 
 [tool.scikit-build]
 build-dir = "build/{wheel_tag}"
 wheel.packages = ["python/agnsf"]
+
+# cfitsio is found automatically: pkg-config / common prefixes, or
+# downloaded and built during the CMake configure step when missing.
+cmake.version = ">=3.16"

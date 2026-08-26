@@ -9,7 +9,7 @@ namespace {
 
 void test_custom_bins()
 {
-    esf::LagBins bins({
+    agnsf::esf::LagBins bins({
         0.0,
         1.0,
         2.0,
@@ -32,7 +32,7 @@ void test_custom_bins()
 
 void test_index()
 {
-    esf::LagBins bins({
+    agnsf::esf::LagBins bins({
         0.0,
         1.0,
         2.0,
@@ -52,7 +52,7 @@ void test_index()
 
 void test_try_index()
 {
-    esf::LagBins bins({
+    agnsf::esf::LagBins bins({
         0.0,
         1.0,
         2.0,
@@ -87,7 +87,7 @@ void test_invalid_edges()
     bool thrown = false;
 
     try {
-        esf::LagBins bins({
+        agnsf::esf::LagBins bins({
             -1.0,
             1.0
         });
@@ -102,7 +102,7 @@ void test_invalid_edges()
     thrown = false;
 
     try {
-        esf::LagBins bins({
+        agnsf::esf::LagBins bins({
             0.0,
             1.0,
             1.0
@@ -119,7 +119,7 @@ void test_invalid_edges()
 void test_linear()
 {
     const auto bins =
-        esf::LagBins::linear(
+        agnsf::esf::LagBins::linear(
             0.0,
             5.0,
             1.0
@@ -136,7 +136,7 @@ void test_linear()
 void test_logarithmic()
 {
     const auto bins =
-        esf::LagBins::logarithmic(
+        agnsf::esf::LagBins::logarithmic(
             1.0,
             100.0,
             1.0
@@ -180,7 +180,7 @@ void test_logarithmic_zero()
     bool thrown = false;
 
     try {
-        esf::LagBins::logarithmic(
+        agnsf::esf::LagBins::logarithmic(
             0.0,
             100.0,
             10

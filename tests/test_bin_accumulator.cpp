@@ -7,7 +7,7 @@ namespace {
 
 void test_noise_correction()
 {
-    esf::BinAccumulator accumulator;
+    agnsf::esf::BinAccumulator accumulator;
 
     accumulator.add(
         1.0,
@@ -53,7 +53,7 @@ void test_noise_correction()
 
 void test_negative_sf_squared()
 {
-    esf::BinAccumulator accumulator;
+    agnsf::esf::BinAccumulator accumulator;
 
     accumulator.add(
         0.1,
@@ -79,7 +79,7 @@ void test_methods()
 {
     constexpr double kPi = 3.14159265358979323846;
 
-    esf::BinAccumulator accumulator;
+    agnsf::esf::BinAccumulator accumulator;
 
     accumulator.add(1.0, 0.1, 0.1);
     accumulator.add(2.0, 0.1, 0.1);
@@ -97,7 +97,7 @@ void test_methods()
     assert(
         std::abs(
             accumulator.sf_squared(
-                esf::SFMethod::SecondOrder
+                agnsf::esf::SFMethod::SecondOrder
             ) - 2.48
         ) < 1e-12
     );
@@ -106,7 +106,7 @@ void test_methods()
     assert(
         std::abs(
             accumulator.sf_squared(
-                esf::SFMethod::SecondOrderNoNoise
+                agnsf::esf::SFMethod::SecondOrderNoNoise
             ) - 2.5
         ) < 1e-12
     );
@@ -119,7 +119,7 @@ void test_methods()
     assert(
         std::abs(
             accumulator.sf_squared(
-                esf::SFMethod::MeanAbsoluteDeviation
+                agnsf::esf::SFMethod::MeanAbsoluteDeviation
             ) - mad
         ) < 1e-12
     );
@@ -127,7 +127,7 @@ void test_methods()
     assert(
         std::abs(
             accumulator.sf(
-                esf::SFMethod::MeanAbsoluteDeviation
+                agnsf::esf::SFMethod::MeanAbsoluteDeviation
             ) - std::sqrt(mad)
         ) < 1e-12
     );
@@ -140,7 +140,7 @@ void test_methods()
     assert(
         std::abs(
             accumulator.sf_squared(
-                esf::SFMethod::MeanAbsoluteDeviationNoNoise
+                agnsf::esf::SFMethod::MeanAbsoluteDeviationNoNoise
             ) - mad_no_noise
         ) < 1e-12
     );
@@ -155,8 +155,8 @@ void test_methods()
 
 void test_merge()
 {
-    esf::BinAccumulator left;
-    esf::BinAccumulator right;
+    agnsf::esf::BinAccumulator left;
+    agnsf::esf::BinAccumulator right;
 
     left.add(1.0, 0.1, 0.1);
     right.add(-2.0, 0.2, 0.3);
@@ -178,7 +178,7 @@ void test_merge()
     assert(
         std::abs(
             left.sf_squared(
-                esf::SFMethod::SecondOrderNoNoise
+                agnsf::esf::SFMethod::SecondOrderNoNoise
             ) - 2.5
         ) < 1e-12
     );

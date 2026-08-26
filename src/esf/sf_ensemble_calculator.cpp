@@ -9,22 +9,10 @@
 #include <esf/sf_calculator.hpp>
 #include <esf/sf_ensemble_calculator.hpp>
 
+namespace agnsf {
 namespace esf {
 
 namespace {
-
-LightCurveView make_view(
-    const LightCurve& data
-)
-{
-    return LightCurveView(
-        data.time_data(),
-        data.value_data(),
-        data.error_data(),
-        data.size()
-    );
-}
-
 
 /**
  * Turn accumulated per-bin statistics into an SFResult.
@@ -95,7 +83,7 @@ SFResult make_result(
 
 
 SFResult calculate_ensemble(
-    const std::vector<LightCurveView>& data,
+    const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
     SFMethod sf_method,
     SFEnsembleCalculator::Method method
@@ -258,19 +246,17 @@ SFResult calculate_ensemble(
 
 
 SFResult SFEnsembleCalculator::calculate(
-    const std::vector<LightCurve>& data,
+    const std::vector<agnsf::LightCurve>& data,
     const LagBins& bins,
     SFMethod sf_method,
     Method method
 ) const
 {
-    std::vector<LightCurveView> views;
+    std::vector<agnsf::LightCurveView> views;
     views.reserve(data.size());
 
     for (const auto& light_curve : data) {
-        views.push_back(
-            make_view(light_curve)
-        );
+        views.push_back(light_curve.view());
     }
 
     return calculate(
@@ -283,7 +269,7 @@ SFResult SFEnsembleCalculator::calculate(
 
 
 SFResult SFEnsembleCalculator::calculate(
-    const std::vector<LightCurveView>& data,
+    const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
     SFMethod sf_method,
     Method method
@@ -298,3 +284,4 @@ SFResult SFEnsembleCalculator::calculate(
 }
 
 } // namespace esf
+} // namespace agnsf

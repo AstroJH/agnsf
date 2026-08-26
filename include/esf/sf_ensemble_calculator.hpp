@@ -4,10 +4,10 @@
 
 #include <esf/sf_method.hpp>
 #include <esf/lag_bins.hpp>
-#include <esf/light_curve.hpp>
-#include <esf/light_curve_view.hpp>
+#include <core/light_curve.hpp>
 #include <esf/sf_result.hpp>
 
+namespace agnsf {
 namespace esf {
 
 /**
@@ -45,14 +45,14 @@ public:
     };
 
     SFResult calculate(
-        const std::vector<LightCurve>& data,
+        const std::vector<agnsf::LightCurve>& data,
         const LagBins& bins,
         SFMethod sf_method = SFMethod::SecondOrder,
         Method method = Method::SqrtMeanSquared
     ) const;
 
     SFResult calculate(
-        const std::vector<LightCurveView>& data,
+        const std::vector<agnsf::LightCurveView>& data,
         const LagBins& bins,
         SFMethod sf_method = SFMethod::SecondOrder,
         Method method = Method::SqrtMeanSquared
@@ -60,3 +60,4 @@ public:
 };
 
 } // namespace esf
+} // namespace agnsf

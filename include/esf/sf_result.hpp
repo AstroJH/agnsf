@@ -4,6 +4,7 @@
 #include <limits>
 #include <vector>
 
+namespace agnsf {
 namespace esf {
 
 struct SFBinResult {
@@ -41,3 +42,4 @@ private:
 };
 
 } // namespace esf
+} // namespace agnsf

@@ -3,6 +3,7 @@
 
 #include <esf/bin_accumulator.hpp>
 
+namespace agnsf {
 namespace esf {
 
 namespace {
@@ -141,3 +142,4 @@ BinAccumulator::sf(
 }
 
 } // namespace esf
+} // namespace agnsf

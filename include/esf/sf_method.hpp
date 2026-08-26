@@ -1,5 +1,6 @@
 #pragma once
 
+namespace agnsf {
 namespace esf {
 
 /**
@@ -32,3 +33,4 @@ enum class SFMethod {
 };
 
 } // namespace esf
+} // namespace agnsf

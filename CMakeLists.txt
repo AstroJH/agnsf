@@ -35,31 +35,189 @@ execute_process(
 
 find_package(pybind11 CONFIG REQUIRED)
 
+# cfitsio is used by the agnsf_io library to read FITS light curves.
+#
+# Detection order:
+#   1. pkg-config (conda / homebrew / system)
+#   2. manual find_path / find_library (conda prefix, homebrew, /usr)
+#   3. download and build cfitsio (ExternalProject) so that a plain
+#      `pip install .` works without a pre-installed cfitsio
+find_package(PkgConfig QUIET)
+
+set(CFITSIO_FOUND FALSE)
+
+if(PkgConfig_FOUND)
+    pkg_check_modules(CFITSIO QUIET IMPORTED_TARGET cfitsio)
+
+    if(TARGET PkgConfig::CFITSIO)
+        # Unify on cfitsio::cfitsio so that agnsf_io links the same
+        # target regardless of which detection path found cfitsio.
+        add_library(cfitsio::cfitsio INTERFACE IMPORTED)
+
+        set_target_properties(cfitsio::cfitsio PROPERTIES
+            INTERFACE_LINK_LIBRARIES PkgConfig::CFITSIO
+        )
+
+        set(CFITSIO_FOUND TRUE)
+    endif()
+endif()
+
+if(NOT CFITSIO_FOUND)
+    find_path(CFITSIO_INCLUDE_DIR fitsio.h
+        HINTS
+            ${CONDA_PREFIX}/include
+            /opt/homebrew/include
+            /usr/local/include
+            /usr/include
+    )
+
+    find_library(CFITSIO_LIBRARY NAMES cfitsio
+        HINTS
+            ${CONDA_PREFIX}/lib
+            /opt/homebrew/lib
+            /usr/local/lib
+            /usr/lib
+    )
+
+    if(CFITSIO_INCLUDE_DIR AND CFITSIO_LIBRARY)
+        add_library(cfitsio::cfitsio UNKNOWN IMPORTED)
+
+        set_target_properties(cfitsio::cfitsio PROPERTIES
+            IMPORTED_LOCATION "${CFITSIO_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${CFITSIO_INCLUDE_DIR}"
+        )
+
+        set(CFITSIO_FOUND TRUE)
+    endif()
+endif()
+
+if(NOT CFITSIO_FOUND)
+    option(
+        AGNSF_FETCH_CFITSIO
+        "Download and build cfitsio when it is not found on the system"
+        ON
+    )
+
+    if(AGNSF_FETCH_CFITSIO)
+        message(STATUS "cfitsio not found; downloading and building it")
+
+        include(ExternalProject)
+
+        set(AGNSF_CFITSIO_INSTALL
+            "${CMAKE_BINARY_DIR}/_deps/cfitsio/install"
+        )
+
+        ExternalProject_Add(agnsf_cfitsio
+            GIT_REPOSITORY "https://github.com/heasarc/cfitsio.git"
+            GIT_TAG "v4.6.3"
+            PREFIX "${CMAKE_BINARY_DIR}/_deps/cfitsio"
+            UPDATE_COMMAND ""
+            CONFIGURE_COMMAND
+                <SOURCE_DIR>/configure
+                --prefix=<INSTALL_DIR>
+                --disable-shared
+                --enable-static
+            BUILD_COMMAND ${CMAKE_MAKE_PROGRAM} -j
+            INSTALL_COMMAND ${CMAKE_MAKE_PROGRAM} install
+            INSTALL_DIR "${AGNSF_CFITSIO_INSTALL}"
+        )
+
+        add_library(cfitsio::cfitsio UNKNOWN IMPORTED)
+
+        set_target_properties(cfitsio::cfitsio PROPERTIES
+            IMPORTED_LOCATION
+                "${AGNSF_CFITSIO_INSTALL}/lib/libcfitsio.a"
+            INTERFACE_INCLUDE_DIRECTORIES
+                "${AGNSF_CFITSIO_INSTALL}/include"
+        )
+
+        set(CFITSIO_FOUND TRUE)
+    else()
+        message(FATAL_ERROR
+            "cfitsio is required to build agnsf. Install it "
+            "(e.g. homebrew: brew install cfitsio) or re-run with "
+            "-DAGNSF_FETCH_CFITSIO=ON."
+        )
+    endif()
+endif()
+
 
 # ----------------------------------------------------------------------
-# C++ Library
+# Core Library (shared data model; no analysis-specific dependencies)
 # ----------------------------------------------------------------------
 
-add_library(esf
-    src/lag_bins.cpp
-    src/light_curve.cpp
-    src/light_curve_view.cpp
-    src/bin_accumulator.cpp
-    src/sf_result.cpp
-    src/sf_calculator.cpp
-    src/pooled_esf_calculator.cpp
-    src/sf_ensemble_calculator.cpp
-    src/pair_accumulator.cpp
+add_library(agnsf_core
+    src/core/light_curve.cpp
 )
 
-target_link_libraries(esf
-    PRIVATE
-        Threads::Threads
-)
-
-target_include_directories(esf
+target_include_directories(agnsf_core
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
+)
+
+
+# ----------------------------------------------------------------------
+# IO Library (independent of esf; reusable by future modules)
+# ----------------------------------------------------------------------
+
+add_library(agnsf_io
+    src/io/light_curve.cpp
+    src/io/path_list.cpp
+    src/io/table_writer.cpp
+)
+
+target_include_directories(agnsf_io
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(agnsf_io
+    PRIVATE
+        agnsf_core
+        cfitsio::cfitsio
+)
+
+# When cfitsio is downloaded, make sure it is built before agnsf_io
+# is compiled and linked against it.
+if(TARGET agnsf_cfitsio)
+    add_dependencies(agnsf_io agnsf_cfitsio)
+
+    find_package(ZLIB QUIET)
+
+    if(ZLIB_FOUND)
+        target_link_libraries(agnsf_io
+            PRIVATE
+                ZLIB::ZLIB
+        )
+    endif()
+endif()
+
+
+# ----------------------------------------------------------------------
+# ESF Library (agnsf::esf namespace)
+# ----------------------------------------------------------------------
+
+add_library(agnsf_esf
+    src/esf/lag_bins.cpp
+    src/esf/bin_accumulator.cpp
+    src/esf/sf_result.cpp
+    src/esf/sf_calculator.cpp
+    src/esf/pooled_esf_calculator.cpp
+    src/esf/sf_ensemble_calculator.cpp
+    src/esf/pair_accumulator.cpp
+    src/esf/sf_io.cpp
+)
+
+target_include_directories(agnsf_esf
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(agnsf_esf
+    PRIVATE
+        Threads::Threads
+        agnsf_core
+        agnsf_io
 )
 
 
@@ -73,7 +231,7 @@ pybind11_add_module(_agnsf
 
 target_link_libraries(_agnsf
     PRIVATE
-        esf
+        agnsf_esf
 )
 
 
@@ -109,7 +267,7 @@ add_executable(test_lag_bins
 
 target_link_libraries(test_lag_bins
     PRIVATE
-        esf
+        agnsf_esf
 )
 
 add_test(
@@ -124,7 +282,7 @@ add_executable(test_light_curve
 
 target_link_libraries(test_light_curve
     PRIVATE
-        esf
+        agnsf_core
 )
 
 add_test(
@@ -139,7 +297,7 @@ add_executable(test_bin_accumulator
 
 target_link_libraries(test_bin_accumulator
     PRIVATE
-        esf
+        agnsf_esf
 )
 
 add_test(
@@ -154,7 +312,7 @@ add_executable(test_sf_calculator
 
 target_link_libraries(test_sf_calculator
     PRIVATE
-        esf
+        agnsf_esf
 )
 
 add_test(
@@ -169,7 +327,7 @@ add_executable(test_pooled_esf_calculator
 
 target_link_libraries(test_pooled_esf_calculator
     PRIVATE
-        esf
+        agnsf_esf
 )
 
 add_test(
@@ -184,10 +342,73 @@ add_executable(test_sf_ensemble_calculator
 
 target_link_libraries(test_sf_ensemble_calculator
     PRIVATE
-        esf
+        agnsf_esf
 )
 
 add_test(
     NAME sf_ensemble_calculator
     COMMAND test_sf_ensemble_calculator
 )
+
+
+add_executable(test_light_curve_io
+    tests/test_light_curve_io.cpp
+)
+
+target_link_libraries(test_light_curve_io
+    PRIVATE
+        agnsf_io
+        PkgConfig::CFITSIO
+)
+
+add_test(
+    NAME light_curve_io
+    COMMAND test_light_curve_io
+)
+
+
+add_executable(test_path_list
+    tests/test_path_list.cpp
+)
+
+target_link_libraries(test_path_list
+    PRIVATE
+        agnsf_io
+)
+
+add_test(
+    NAME path_list
+    COMMAND test_path_list
+)
+
+
+add_executable(test_table_writer
+    tests/test_table_writer.cpp
+)
+
+target_link_libraries(test_table_writer
+    PRIVATE
+        agnsf_io
+)
+
+add_test(
+    NAME table_writer
+    COMMAND test_table_writer
+)
+
+
+add_executable(test_sf_io
+    tests/test_sf_io.cpp
+)
+
+target_link_libraries(test_sf_io
+    PRIVATE
+        agnsf_esf
+)
+
+add_test(
+    NAME sf_io
+    COMMAND test_sf_io
+)
+
+

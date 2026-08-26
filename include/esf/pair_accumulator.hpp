@@ -4,9 +4,9 @@
 
 #include <esf/bin_accumulator.hpp>
 #include <esf/lag_bins.hpp>
-#include <esf/light_curve.hpp>
-#include <esf/light_curve_view.hpp>
+#include <core/light_curve.hpp>
 
+namespace agnsf {
 namespace esf {
 
 /**
@@ -27,12 +27,13 @@ namespace esf {
  * later Pooled ESF calculation.
  */
 std::vector<BinAccumulator> accumulate_light_curve(
-    const LightCurve& light_curve,
+    const agnsf::LightCurve& light_curve,
     const LagBins& bins
 );
 
 std::vector<BinAccumulator> accumulate_light_curve(
-    const LightCurveView& light_curve,
+    const agnsf::LightCurveView& light_curve,
     const LagBins& bins
 );
-}
+} // namespace esf
+} // namespace agnsf

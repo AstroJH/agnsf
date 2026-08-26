@@ -126,3 +126,82 @@ def ensemble_sf(
     method: EnsembleMethod = EnsembleMethod.SqrtMeanSquared,
     sf_method: SFMethod = SFMethod.SecondOrder,
 ) -> SFResult: ...
+
+
+def read_light_curve(
+    path: str,
+    time: str = "time",
+    value: str = "value",
+    error: str = "error",
+) -> LightCurve: ...
+
+
+def read_path_list(
+    path: str,
+) -> list[str]: ...
+
+
+def write_table(
+    path: str,
+    headers: Sequence[str],
+    columns: Sequence[Sequence[float]],
+) -> None: ...
+
+
+def sf_from_file(
+    path: str,
+    bins: LagBins,
+    method: SFMethod = SFMethod.SecondOrder,
+    time: str = "time",
+    value: str = "value",
+    error: str = "error",
+) -> SFResult: ...
+
+
+def pooled_sf_from_files(
+    paths: Sequence[str],
+    bins: LagBins,
+    method: SFMethod = SFMethod.SecondOrder,
+    time: str = "time",
+    value: str = "value",
+    error: str = "error",
+) -> SFResult: ...
+
+
+def pooled_sf_from_path_list(
+    path_list_file: str,
+    bins: LagBins,
+    method: SFMethod = SFMethod.SecondOrder,
+    time: str = "time",
+    value: str = "value",
+    error: str = "error",
+) -> SFResult: ...
+
+
+def ensemble_sf_from_files(
+    paths: Sequence[str],
+    bins: LagBins,
+    method: EnsembleMethod = EnsembleMethod.SqrtMeanSquared,
+    sf_method: SFMethod = SFMethod.SecondOrder,
+    time: str = "time",
+    value: str = "value",
+    error: str = "error",
+) -> SFResult: ...
+
+
+def ensemble_sf_from_path_list(
+    path_list_file: str,
+    bins: LagBins,
+    method: EnsembleMethod = EnsembleMethod.SqrtMeanSquared,
+    sf_method: SFMethod = SFMethod.SecondOrder,
+    time: str = "time",
+    value: str = "value",
+    error: str = "error",
+) -> SFResult: ...
+
+
+def write_sf_result(
+    path: str,
+    bins: LagBins,
+    result: SFResult,
+) -> None: ...
