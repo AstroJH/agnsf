@@ -23,7 +23,8 @@ namespace
  */
 SFResult calculate_pooled(
     const std::vector<LightCurveView>& data,
-    const LagBins& bins
+    const LagBins& bins,
+    SFMethod method
 )
 {
     /*
@@ -163,8 +164,8 @@ SFResult calculate_pooled(
         SFBinResult result;
 
         result.count = accumulator.count();
-        result.sf_squared = accumulator.sf_squared();
-        result.sf = accumulator.sf();
+        result.sf_squared = accumulator.sf_squared(method);
+        result.sf = accumulator.sf(method);
 
         results.push_back(result);
     }
@@ -178,7 +179,8 @@ SFResult calculate_pooled(
 
 SFResult PooledESFCalculator::calculate(
     const std::vector<LightCurve>& data,
-    const LagBins& bins
+    const LagBins& bins,
+    SFMethod method
 ) const
 {
     /*
@@ -200,19 +202,22 @@ SFResult PooledESFCalculator::calculate(
 
     return calculate_pooled(
         views,
-        bins
+        bins,
+        method
     );
 }
 
 
 SFResult PooledESFCalculator::calculate(
     const std::vector<LightCurveView>& data,
-    const LagBins& bins
+    const LagBins& bins,
+    SFMethod method
 ) const
 {
     return calculate_pooled(
         data,
-        bins
+        bins,
+        method
     );
 }
 

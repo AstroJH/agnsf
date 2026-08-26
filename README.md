@@ -24,7 +24,42 @@
   light-curve files and writing results to FITS or CSV
 
 - [ ] Python interface supporting both in-memory light curves and file paths
-  
+
+## Structure Function Estimators
+
+The structure function can be computed with several estimators, selected through
+`SFMethod` (`sf`, `pooled_sf`, and the per-curve step of `ensemble_sf`):
+
+- **SecondOrder** (default) — noise-corrected second-order estimator:
+
+  $$\mathrm{SF}^2(\tau)=
+  \left\langle \Delta^2 \right\rangle -
+  \left\langle \sigma_i^2 + \sigma_j^2 \right\rangle
+  $$
+
+- **SecondOrderNoNoise** — second-order estimator without noise subtraction:
+
+  $$\mathrm{SF}^2(\tau)=
+  \left\langle \Delta^2 \right\rangle
+  $$
+
+- **MeanAbsoluteDeviation** — mean-absolute-deviation based estimator, noise-corrected:
+
+  $$\mathrm{SF}^2(\tau)=
+  \frac{\pi}{2}\left\langle |\Delta| \right\rangle^2 -
+  \left\langle \sigma_i^2 + \sigma_j^2 \right\rangle
+  $$
+
+- **MeanAbsoluteDeviationNoNoise** — without noise subtraction:
+
+  $$\mathrm{SF}^2(\tau)=
+  \frac{\pi}{2}\left\langle |\Delta| \right\rangle^2
+  $$
+
+where $\Delta = m_j - m_i$ runs over all pairs in the lag bin. In every case
+$\mathrm{SF}(\tau)=\sqrt{\mathrm{SF}^2(\tau)}$ when the result is finite and
+non-negative, otherwise it is NaN.
+
 ## Ensemble Structure Functions
 
 AGNSF supports two approaches for calculating ensemble structure functions:

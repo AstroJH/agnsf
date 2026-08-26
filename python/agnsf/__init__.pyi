@@ -1,6 +1,13 @@
 from typing import Sequence
 
 
+class SFMethod:
+    SecondOrder: SFMethod
+    SecondOrderNoNoise: SFMethod
+    MeanAbsoluteDeviation: SFMethod
+    MeanAbsoluteDeviationNoNoise: SFMethod
+
+
 class EnsembleMethod:
     SqrtMeanSquared: EnsembleMethod
     MeanSf: EnsembleMethod
@@ -98,6 +105,7 @@ def sf(
     value: Sequence[float],
     error: Sequence[float],
     bins: LagBins,
+    method: SFMethod = SFMethod.SecondOrder,
 ) -> SFResult: ...
 
 
@@ -106,6 +114,7 @@ def pooled_sf(
     value: Sequence[Sequence[float]],
     error: Sequence[Sequence[float]],
     bins: LagBins,
+    method: SFMethod = SFMethod.SecondOrder,
 ) -> SFResult: ...
 
 
@@ -115,4 +124,5 @@ def ensemble_sf(
     error: Sequence[Sequence[float]],
     bins: LagBins,
     method: EnsembleMethod = EnsembleMethod.SqrtMeanSquared,
+    sf_method: SFMethod = SFMethod.SecondOrder,
 ) -> SFResult: ...

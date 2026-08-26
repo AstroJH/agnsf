@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include <esf/sf_method.hpp>
 #include <esf/lag_bins.hpp>
 #include <esf/light_curve.hpp>
 #include <esf/light_curve_view.hpp>
@@ -13,7 +14,8 @@ namespace esf {
  * Ensemble SF obtained by first computing an SF for each light
  * curve and then combining the individual SF values.
  *
- * Two combination methods are supported:
+ * The per-curve SF is computed with the chosen estimator
+ * (SFMethod). Two combination methods are then supported:
  *
  *   SqrtMeanSquared (default):
  *
@@ -45,12 +47,14 @@ public:
     SFResult calculate(
         const std::vector<LightCurve>& data,
         const LagBins& bins,
+        SFMethod sf_method = SFMethod::SecondOrder,
         Method method = Method::SqrtMeanSquared
     ) const;
 
     SFResult calculate(
         const std::vector<LightCurveView>& data,
         const LagBins& bins,
+        SFMethod sf_method = SFMethod::SecondOrder,
         Method method = Method::SqrtMeanSquared
     ) const;
 };

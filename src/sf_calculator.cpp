@@ -11,7 +11,8 @@ SFResult calculate_impl(
     const double* value,
     const double* error,
     std::size_t size,
-    const LagBins& bins
+    const LagBins& bins,
+    SFMethod method
 )
 {
     std::vector<BinAccumulator> accumulators(
@@ -60,8 +61,8 @@ SFResult calculate_impl(
         SFBinResult result;
 
         result.count = accumulator.count();
-        result.sf_squared = accumulator.sf_squared();
-        result.sf = accumulator.sf();
+        result.sf_squared = accumulator.sf_squared(method);
+        result.sf = accumulator.sf(method);
 
         results.push_back(result);
     }
@@ -76,7 +77,8 @@ SFResult calculate_impl(
 
 SFResult SFCalculator::calculate(
     const LightCurve& data,
-    const LagBins& bins
+    const LagBins& bins,
+    SFMethod method
 ) const
 {
     return calculate_impl(
@@ -84,14 +86,16 @@ SFResult SFCalculator::calculate(
         data.value_data(),
         data.error_data(),
         data.size(),
-        bins
+        bins,
+        method
     );
 }
 
 
 SFResult SFCalculator::calculate(
     const LightCurveView& data,
-    const LagBins& bins
+    const LagBins& bins,
+    SFMethod method
 ) const
 {
     return calculate_impl(
@@ -99,7 +103,8 @@ SFResult SFCalculator::calculate(
         data.value_data(),
         data.error_data(),
         data.size(),
-        bins
+        bins,
+        method
     );
 }
 

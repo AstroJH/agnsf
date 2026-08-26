@@ -132,6 +132,7 @@ void test_mean_sf_mode()
         ensemble_calculator.calculate(
             data,
             bins,
+            esf::SFMethod::SecondOrder,
             esf::SFEnsembleCalculator::Method::MeanSf
         );
 
@@ -165,6 +166,7 @@ void test_mean_sf_mode()
         ensemble_calculator.calculate(
             data,
             bins,
+            esf::SFMethod::SecondOrder,
             esf::SFEnsembleCalculator::Method::SqrtMeanSquared
         );
 
@@ -241,6 +243,7 @@ void test_mean_sf_mode()
         ensemble_calculator.calculate(
             views,
             bins,
+            esf::SFMethod::SecondOrder,
             esf::SFEnsembleCalculator::Method::MeanSf
         );
 
@@ -281,6 +284,7 @@ void test_mean_sf_mode()
         ensemble_calculator.calculate(
             empty_data,
             bins,
+            esf::SFMethod::SecondOrder,
             esf::SFEnsembleCalculator::Method::MeanSf
         );
 
@@ -300,6 +304,108 @@ void test_mean_sf_mode()
             std::isnan(empty_mean_sf.bin(i).sf)
         );
     }
+}
+
+void test_sf_method_variants()
+{
+    constexpr double kPi = 3.14159265358979323846;
+
+    /*
+     * Two curves, each with a single pair at lag 1.
+     *
+     * lc_a: delta = 2  ->  SF^2 = pi/2 * 2^2 = 2*pi
+     * lc_b: delta = 4  ->  SF^2 = pi/2 * 4^2 = 8*pi
+     */
+    const esf::LightCurve lc_a(
+        {0.0, 1.0},
+        {0.0, 2.0},
+        {0.0, 0.0}
+    );
+
+    const esf::LightCurve lc_b(
+        {0.0, 1.0},
+        {0.0, 4.0},
+        {0.0, 0.0}
+    );
+
+    const std::vector<esf::LightCurve> data = {
+        lc_a,
+        lc_b
+    };
+
+    const esf::LagBins bins({
+        0.0,
+        1.5
+    });
+
+    esf::SFEnsembleCalculator ensemble_calculator;
+
+    /*
+     * SqrtMeanSquared with MeanAbsoluteDeviation per-curve SF:
+     *
+     *   ESF^2 = <SF^2> = (2*pi + 8*pi) / 2 = 5*pi
+     */
+    const esf::SFResult rms =
+        ensemble_calculator.calculate(
+            data,
+            bins,
+            esf::SFMethod::MeanAbsoluteDeviation,
+            esf::SFEnsembleCalculator::Method::SqrtMeanSquared
+        );
+
+    assert(rms.bin(0).count == 2);
+    check_close(
+        rms.bin(0).sf_squared,
+        5.0 * kPi
+    );
+    check_close(
+        rms.bin(0).sf,
+        std::sqrt(5.0 * kPi)
+    );
+
+    /*
+     * MeanSf with MeanAbsoluteDeviation per-curve SF:
+     *
+     *   ESF = <SF> = (sqrt(2*pi) + sqrt(8*pi)) / 2
+     */
+    const esf::SFResult mean =
+        ensemble_calculator.calculate(
+            data,
+            bins,
+            esf::SFMethod::MeanAbsoluteDeviation,
+            esf::SFEnsembleCalculator::Method::MeanSf
+        );
+
+    assert(mean.bin(0).count == 2);
+    check_close(
+        mean.bin(0).sf,
+        (
+            std::sqrt(2.0 * kPi) +
+            std::sqrt(8.0 * kPi)
+        ) / 2.0
+    );
+    check_close(
+        mean.bin(0).sf_squared,
+        mean.bin(0).sf * mean.bin(0).sf
+    );
+
+
+    /*
+     * SecondOrderNoNoise per-curve SF:
+     *
+     *   ESF^2 = <SF^2> = (4 + 16) / 2 = 10
+     */
+    const esf::SFResult no_noise =
+        ensemble_calculator.calculate(
+            data,
+            bins,
+            esf::SFMethod::SecondOrderNoNoise,
+            esf::SFEnsembleCalculator::Method::SqrtMeanSquared
+        );
+
+    assert(no_noise.bin(0).count == 2);
+    check_close(no_noise.bin(0).sf_squared, 10.0);
+    check_close(no_noise.bin(0).sf, std::sqrt(10.0));
 }
 
 
@@ -604,6 +710,7 @@ int main()
 
 
     test_mean_sf_mode();
+    test_sf_method_variants();
 
 
     return 0;

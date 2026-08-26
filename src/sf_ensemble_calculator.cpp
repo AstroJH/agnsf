@@ -97,6 +97,7 @@ SFResult make_result(
 SFResult calculate_ensemble(
     const std::vector<LightCurveView>& data,
     const LagBins& bins,
+    SFMethod sf_method,
     SFEnsembleCalculator::Method method
 )
 {
@@ -168,7 +169,7 @@ SFResult calculate_ensemble(
             );
 
         threads.emplace_back(
-            [&, thread_id, begin, end, method]() {
+            [&, thread_id, begin, end, sf_method, method]() {
 
                 SFCalculator sf_calculator;
 
@@ -179,7 +180,8 @@ SFResult calculate_ensemble(
                     const SFResult result =
                         sf_calculator.calculate(
                             data[i],
-                            bins
+                            bins,
+                            sf_method
                         );
 
                     for (std::size_t j = 0;
@@ -258,6 +260,7 @@ SFResult calculate_ensemble(
 SFResult SFEnsembleCalculator::calculate(
     const std::vector<LightCurve>& data,
     const LagBins& bins,
+    SFMethod sf_method,
     Method method
 ) const
 {
@@ -273,6 +276,7 @@ SFResult SFEnsembleCalculator::calculate(
     return calculate(
         views,
         bins,
+        sf_method,
         method
     );
 }
@@ -281,12 +285,14 @@ SFResult SFEnsembleCalculator::calculate(
 SFResult SFEnsembleCalculator::calculate(
     const std::vector<LightCurveView>& data,
     const LagBins& bins,
+    SFMethod sf_method,
     Method method
 ) const
 {
     return calculate_ensemble(
         data,
         bins,
+        sf_method,
         method
     );
 }

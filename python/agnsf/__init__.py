@@ -1,5 +1,6 @@
 from ._agnsf import (
     EnsembleMethod,
+    SFMethod,
     LagBins,
     LightCurve,
     SFBinResult,
@@ -11,6 +12,7 @@ from ._agnsf import (
 
 __all__ = [
     "EnsembleMethod",
+    "SFMethod",
     "LagBins",
     "LightCurve",
     "SFBinResult",
@@ -22,6 +24,7 @@ __all__ = [
 ]
 
 import numpy as np
+
 
 def to_numpy(result: SFBinResult, bins: LagBins):
     lag = np.array([

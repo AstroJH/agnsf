@@ -392,6 +392,32 @@ PYBIND11_MODULE(_agnsf, m)
 
 
     // ------------------------------------------------------------------
+    // SFMethod
+    // ------------------------------------------------------------------
+
+    py::enum_<esf::SFMethod>(
+        m,
+        "SFMethod"
+    )
+        .value(
+            "SecondOrder",
+            esf::SFMethod::SecondOrder
+        )
+        .value(
+            "SecondOrderNoNoise",
+            esf::SFMethod::SecondOrderNoNoise
+        )
+        .value(
+            "MeanAbsoluteDeviation",
+            esf::SFMethod::MeanAbsoluteDeviation
+        )
+        .value(
+            "MeanAbsoluteDeviationNoNoise",
+            esf::SFMethod::MeanAbsoluteDeviationNoNoise
+        );
+
+
+    // ------------------------------------------------------------------
     // Single-light-curve SF
     //
     // NumPy arrays are accepted only when they are:
@@ -410,7 +436,8 @@ PYBIND11_MODULE(_agnsf, m)
             const Float64Array& time,
             const Float64Array& value,
             const Float64Array& error,
-            const esf::LagBins& bins
+            const esf::LagBins& bins,
+            esf::SFMethod method
         )
         {
             const auto light_curve =
@@ -424,18 +451,30 @@ PYBIND11_MODULE(_agnsf, m)
 
             return calculator.calculate(
                 light_curve,
-                bins
+                bins,
+                method
             );
         },
         py::arg("time"),
         py::arg("value"),
         py::arg("error"),
         py::arg("bins"),
+        py::arg("method") =
+            esf::SFMethod::SecondOrder,
         R"pbdoc(
 Calculate the structure function of a single light curve.
 
 The input arrays must be one-dimensional, float64, and
 C-contiguous. No data copy is performed by this interface.
+
+method: SFMethod.SecondOrder (default)
+            SF^2 = <delta^2> - <sigma_i^2 + sigma_j^2>
+        SFMethod.SecondOrderNoNoise
+            SF^2 = <delta^2>
+        SFMethod.MeanAbsoluteDeviation
+            SF^2 = pi/2 * <|delta|>^2 - <sigma_i^2 + sigma_j^2>
+        SFMethod.MeanAbsoluteDeviationNoNoise
+            SF^2 = pi/2 * <|delta|>^2
         )pbdoc"
     );
 
@@ -445,7 +484,8 @@ C-contiguous. No data copy is performed by this interface.
             const py::list& times,
             const py::list& values,
             const py::list& errors,
-            const esf::LagBins& bins
+            const esf::LagBins& bins,
+            esf::SFMethod method
         )
         {
             const auto batch =
@@ -459,13 +499,22 @@ C-contiguous. No data copy is performed by this interface.
 
             return calculator.calculate(
                 batch.views,
-                bins
+                bins,
+                method
             );
         },
         py::arg("times"),
         py::arg("values"),
         py::arg("errors"),
-        py::arg("bins")
+        py::arg("bins"),
+        py::arg("method") =
+            esf::SFMethod::SecondOrder,
+        R"pbdoc(
+Calculate the pooled ensemble structure function.
+
+All valid pairs from all light curves are pooled into the same
+lag bins. See sf() for the available SFMethod estimators.
+        )pbdoc"
     );
 
 
@@ -507,7 +556,8 @@ C-contiguous. No data copy is performed by this interface.
             const py::list& values,
             const py::list& errors,
             const esf::LagBins& bins,
-            esf::SFEnsembleCalculator::Method method
+            esf::SFEnsembleCalculator::Method method,
+            esf::SFMethod sf_method
         )
         {
             const auto batch =
@@ -522,6 +572,7 @@ C-contiguous. No data copy is performed by this interface.
             return calculator.calculate(
                 batch.views,
                 bins,
+                sf_method,
                 method
             );
         },
@@ -531,16 +582,22 @@ C-contiguous. No data copy is performed by this interface.
         py::arg("bins"),
         py::arg("method") =
             esf::SFEnsembleCalculator::Method::SqrtMeanSquared,
+        py::arg("sf_method") =
+            esf::SFMethod::SecondOrder,
         R"pbdoc(
 Calculate the aggregated ensemble structure function.
 
-An SF is computed independently for each light curve and the
-individual SF values are combined per lag bin.
+An SF is computed independently for each light curve using the
+chosen SFMethod estimator, and the individual SF values are then
+combined per lag bin.
 
 method: EnsembleMethod.SqrtMeanSquared (default)
             ESF(tau) = sqrt( <SF_k^2(tau)>_k )
         EnsembleMethod.MeanSf
             ESF(tau) = <SF_k(tau)>_k
+
+sf_method: SFMethod.SecondOrder (default)
+            see sf() for the available estimators.
 
 Only light curves with a finite contribution are included in
 each lag bin. Each contributing light curve is weighted equally.

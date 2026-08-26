@@ -1,11 +1,17 @@
 #include <cmath>
 #include <limits>
-#include <esf/bin_accumulator.hpp>
-#include <iostream>
 
+#include <esf/bin_accumulator.hpp>
 
 namespace esf {
-    
+
+namespace {
+
+constexpr double kPi = 3.14159265358979323846;
+
+} // namespace
+
+
 void BinAccumulator::add(
     double delta,
     double error_i,
@@ -18,6 +24,7 @@ void BinAccumulator::add(
         error_j * error_j;
 
     sum_delta_squared_ += delta_squared;
+    sum_abs_delta_ += std::abs(delta);
     sum_noise_ += noise;
     ++count_;
 }
@@ -27,10 +34,9 @@ void BinAccumulator::merge(
     const BinAccumulator& other
 ) noexcept
 {
-    // If other is a nullptr?
-
     count_ += other.count_;
     sum_delta_squared_ += other.sum_delta_squared_;
+    sum_abs_delta_ += other.sum_abs_delta_;
     sum_noise_ += other.sum_noise_;
 }
 
@@ -50,6 +56,13 @@ BinAccumulator::sum_delta_squared() const noexcept
 
 
 double
+BinAccumulator::sum_abs_delta() const noexcept
+{
+    return sum_abs_delta_;
+}
+
+
+double
 BinAccumulator::sum_noise() const noexcept
 {
     return sum_noise_;
@@ -57,24 +70,67 @@ BinAccumulator::sum_noise() const noexcept
 
 
 double
-BinAccumulator::sf_squared() const noexcept
+BinAccumulator::sf_squared(
+    SFMethod method
+) const noexcept
 {
     if (count_ == 0) {
         return std::numeric_limits<double>::quiet_NaN();
     }
 
-    // SF^2 = [sum(delta^2) - sum_noise] / N
-    return (
-        sum_delta_squared_ -
-        sum_noise_
-    ) / static_cast<double>(count_);
+    const double count =
+        static_cast<double>(count_);
+
+    switch (method) {
+        case SFMethod::SecondOrder:
+            // <delta^2> - <noise>
+            return (
+                sum_delta_squared_ -
+                sum_noise_
+            ) / count;
+
+        case SFMethod::SecondOrderNoNoise:
+            // <delta^2>
+            return sum_delta_squared_ / count;
+
+        case SFMethod::MeanAbsoluteDeviation: {
+            // pi/2 * <|delta|>^2 - <noise>
+            const double mean_abs_delta =
+                sum_abs_delta_ / count;
+
+            return (
+                kPi / 2.0 *
+                mean_abs_delta *
+                mean_abs_delta
+            ) - (
+                sum_noise_ / count
+            );
+        }
+
+        case SFMethod::MeanAbsoluteDeviationNoNoise: {
+            // pi/2 * <|delta|>^2
+            const double mean_abs_delta =
+                sum_abs_delta_ / count;
+
+            return (
+                kPi / 2.0 *
+                mean_abs_delta *
+                mean_abs_delta
+            );
+        }
+    }
+
+    // Unreachable; keeps the compiler quiet about missing returns.
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
 
 double
-BinAccumulator::sf() const noexcept
+BinAccumulator::sf(
+    SFMethod method
+) const noexcept
 {
-    const double value = sf_squared();
+    const double value = sf_squared(method);
 
     // SF^2 < 0 -> SF = NaN
     if (!std::isfinite(value) || value < 0.0) {
