@@ -34,15 +34,13 @@ AGNSF supports two approaches for calculating ensemble structure functions:
 - **Aggregated ESF** — calculates the SF independently for each light curve and combines the individual SFs using one of two methods:
   - *Root-mean-square (default)*:
 
-    $$
-    \mathrm{ESF}(\tau)=
+    $$\mathrm{ESF}(\tau)=
     \sqrt{\left\langle \mathrm{SF}_k^2(\tau) \right\rangle_k}
     $$
 
   - *Mean*:
 
-    $$
-    \mathrm{ESF}(\tau)=
+    $$\mathrm{ESF}(\tau)=
     \left\langle \mathrm{SF}_k(\tau) \right\rangle_k.
     $$
 
