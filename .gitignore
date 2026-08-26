@@ -32,3 +32,10 @@ Makefile
 # Local environments
 .venv/
 venv/
+
+# AI / agent configuration
+AGENTS.md
+CLAUDE.md
+.agents/
+.codex/
+.cursor/
