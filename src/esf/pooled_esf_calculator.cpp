@@ -1,18 +1,174 @@
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
+#include <memory>
+#include <random>
+#include <stdexcept>
 #include <thread>
 #include <utility>
 #include <vector>
 
-#include <esf/pooled_esf_calculator.hpp>
 #include <esf/bin_accumulator.hpp>
+#include "esf_uncertainty.hpp"
 #include <esf/pair_accumulator.hpp>
+#include <esf/pooled_esf_calculator.hpp>
+#include <esf/sf_uncertainty_estimator.hpp>
 
 namespace agnsf {
 namespace esf {
 namespace
 {
+
+void validate_config(
+    const UncertaintyConfig& config
+)
+{
+    if (config.measurement != UncertaintyMethod::Off &&
+        config.measurement != UncertaintyMethod::Analytic) {
+
+        throw std::invalid_argument(
+            "PooledESFCalculator: measurement uncertainty supports "
+            "only Off or Analytic"
+        );
+    }
+
+    if (config.sampling == UncertaintyMethod::Analytic) {
+
+        throw std::invalid_argument(
+            "PooledESFCalculator: analytic sampling uncertainty is "
+            "not defined for pooled ESF; use Jackknife or Bootstrap"
+        );
+    }
+
+    if (config.sampling == UncertaintyMethod::Bootstrap &&
+        config.n_bootstrap == 0) {
+
+        throw std::invalid_argument(
+            "PooledESFCalculator: n_bootstrap must be >= 1"
+        );
+    }
+}
+
+
+/**
+ * Fill the measurement uncertainty of every pooled bin using the
+ * analytic within-bin standard-error estimator.
+ */
+void fill_measurement(
+    std::vector<SFBinResult>& results,
+    const std::vector<BinAccumulator>& accumulators,
+    SFMethod method
+)
+{
+    std::unique_ptr<SFMeasurementUncertaintyEstimator> estimator =
+        make_sf_measurement_uncertainty_estimator(method);
+
+    for (std::size_t j = 0; j < results.size(); ++j) {
+        results[j].measurement =
+            estimator->estimate(accumulators[j]);
+    }
+}
+
+
+/**
+ * Fill the sampling uncertainty of every pooled bin.
+ *
+ * The pooled ESF has no per-curve statistics, so the resampling is
+ * done on the retained per-curve BinAccumulators:
+ *
+ *   Jackknife: leave-one-curve-out pooled SF per bin;
+ *   Bootstrap: per-bin resample of curves with replacement.
+ *
+ * Each bin uses an independent bootstrap resample (the same seed
+ * reproduces the result).
+ */
+void fill_sampling(
+    std::vector<SFBinResult>& results,
+    const std::vector<BinAccumulator>& accumulators,
+    const std::vector<std::vector<BinAccumulator>>& curve_stats,
+    SFMethod method,
+    const UncertaintyConfig& config
+)
+{
+    const std::size_t n_curves = curve_stats.size();
+
+    for (std::size_t j = 0; j < results.size(); ++j) {
+
+        if (!std::isfinite(results[j].sf)) {
+            continue;
+        }
+
+        std::vector<double> values;
+        values.reserve(n_curves);
+
+        switch (config.sampling) {
+
+            case UncertaintyMethod::Jackknife: {
+
+                // Leave-one-curve-out pooled SF.
+                for (std::size_t k = 0; k < n_curves; ++k) {
+
+                    BinAccumulator leave_one_out =
+                        accumulators[j];
+
+                    leave_one_out.subtract(
+                        curve_stats[k][j]
+                    );
+
+                    values.push_back(
+                        leave_one_out.sf(method)
+                    );
+                }
+
+                results[j].sampling =
+                    detail::jackknife_interval(
+                        values,
+                        false
+                    );
+                break;
+            }
+
+            case UncertaintyMethod::Bootstrap: {
+
+                std::mt19937 rng(config.bootstrap_seed);
+                std::uniform_int_distribution<std::size_t>
+                    index(0, n_curves - 1);
+
+                for (std::size_t r = 0;
+                     r < config.n_bootstrap;
+                     ++r) {
+
+                    BinAccumulator resampled;
+
+                    for (std::size_t k = 0; k < n_curves; ++k) {
+                        resampled.merge(
+                            curve_stats[index(rng)][j]
+                        );
+                    }
+
+                    values.push_back(
+                        resampled.sf(method)
+                    );
+                }
+
+                results[j].sampling =
+                    detail::bootstrap_interval(
+                        values,
+                        config.n_bootstrap,
+                        config.bootstrap_seed,
+                        false
+                    );
+                break;
+            }
+
+            case UncertaintyMethod::Off:
+            case UncertaintyMethod::Analytic:
+                break;
+        }
+    }
+}
+
 
 /**
  * Calculate pooled ESF from light-curve views.
@@ -25,9 +181,16 @@ namespace
 SFResult calculate_pooled(
     const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
-    SFMethod method
+    SFMethod method,
+    const UncertaintyConfig& config
 )
 {
+    validate_config(config);
+
+    const bool want_sampling =
+        config.sampling == UncertaintyMethod::Jackknife ||
+        config.sampling == UncertaintyMethod::Bootstrap;
+
     /*
      * Each worker processes complete light curves and owns its
      * accumulator array. Therefore, workers never write to the
@@ -68,6 +231,20 @@ SFResult calculate_pooled(
             std::vector<BinAccumulator>(bins.size())
         );
 
+    /*
+     * Per-curve accumulated statistics retained for the jackknife /
+     * bootstrap sampling. Each curve is written by exactly one
+     * worker, so no synchronization is needed.
+     */
+    std::vector<std::vector<BinAccumulator>> curve_stats;
+
+    if (want_sampling) {
+        curve_stats.assign(
+            data.size(),
+            std::vector<BinAccumulator>(bins.size())
+        );
+    }
+
     std::atomic<std::size_t> next_index{0};
 
     std::vector<std::thread> workers;
@@ -80,6 +257,8 @@ SFResult calculate_pooled(
              &bins,
              &next_index,
              &local_accumulators,
+             &curve_stats,
+             want_sampling,
              worker_id]()
             {
                 /*
@@ -107,6 +286,10 @@ SFResult calculate_pooled(
                             data[index],
                             bins
                         );
+
+                    if (want_sampling) {
+                        curve_stats[index] = result;
+                    }
 
                     /*
                      * Each worker writes only to its own entry,
@@ -171,6 +354,20 @@ SFResult calculate_pooled(
         results.push_back(result);
     }
 
+    if (config.measurement != UncertaintyMethod::Off) {
+        fill_measurement(results, accumulators, method);
+    }
+
+    if (want_sampling) {
+        fill_sampling(
+            results,
+            accumulators,
+            curve_stats,
+            method,
+            config
+        );
+    }
+
     return SFResult(
         std::move(results)
     );
@@ -181,7 +378,8 @@ SFResult calculate_pooled(
 SFResult PooledESFCalculator::calculate(
     const std::vector<agnsf::LightCurve>& data,
     const LagBins& bins,
-    SFMethod method
+    SFMethod method,
+    const UncertaintyConfig& config
 ) const
 {
     /*
@@ -199,7 +397,8 @@ SFResult PooledESFCalculator::calculate(
     return calculate_pooled(
         views,
         bins,
-        method
+        method,
+        config
     );
 }
 
@@ -207,13 +406,15 @@ SFResult PooledESFCalculator::calculate(
 SFResult PooledESFCalculator::calculate(
     const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
-    SFMethod method
+    SFMethod method,
+    const UncertaintyConfig& config
 ) const
 {
     return calculate_pooled(
         data,
         bins,
-        method
+        method,
+        config
     );
 }
 

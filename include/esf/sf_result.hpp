@@ -4,6 +4,8 @@
 #include <limits>
 #include <vector>
 
+#include <esf/sf_uncertainty.hpp>
+
 namespace agnsf {
 namespace esf {
 
@@ -18,6 +20,15 @@ struct SFBinResult {
     // Structure function.
     double sf =
         std::numeric_limits<double>::quiet_NaN();
+
+    // Measurement uncertainty on SF or ESF (NaN when not estimated).
+    SFUncertainty measurement;
+
+    // Source-to-source sampling uncertainty on ESF.
+    //
+    // Single light curves never estimate sampling uncertainty; this
+    // stays NaN by design.
+    SFUncertainty sampling;
 };
 
 

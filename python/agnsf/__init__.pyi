@@ -13,10 +13,42 @@ class EnsembleMethod:
     MeanSf: EnsembleMethod
 
 
+class UncertaintyMethod:
+    Off: UncertaintyMethod
+    Analytic: UncertaintyMethod
+    Jackknife: UncertaintyMethod
+    Bootstrap: UncertaintyMethod
+
+
+class SFUncertainty:
+    lower: float
+    upper: float
+
+    @property
+    def estimated(self) -> bool: ...
+
+
+class UncertaintyConfig:
+    measurement: UncertaintyMethod
+    sampling: UncertaintyMethod
+    n_bootstrap: int
+    bootstrap_seed: int
+
+    def __init__(
+        self,
+        measurement: UncertaintyMethod = UncertaintyMethod.Off,
+        sampling: UncertaintyMethod = UncertaintyMethod.Off,
+        n_bootstrap: int = 100,
+        bootstrap_seed: int = 0,
+    ) -> None: ...
+
+
 class SFBinResult:
     count: int
     sf_squared: float
     sf: float
+    measurement: SFUncertainty
+    sampling: SFUncertainty
 
 
 class SFResult:
@@ -106,6 +138,7 @@ def sf(
     error: Sequence[float],
     bins: LagBins,
     method: SFMethod = SFMethod.SecondOrder,
+    uncertainty: UncertaintyConfig = UncertaintyConfig(),
 ) -> SFResult: ...
 
 
@@ -115,6 +148,7 @@ def pooled_sf(
     error: Sequence[Sequence[float]],
     bins: LagBins,
     method: SFMethod = SFMethod.SecondOrder,
+    uncertainty: UncertaintyConfig = UncertaintyConfig(),
 ) -> SFResult: ...
 
 
@@ -125,6 +159,7 @@ def ensemble_sf(
     bins: LagBins,
     method: EnsembleMethod = EnsembleMethod.SqrtMeanSquared,
     sf_method: SFMethod = SFMethod.SecondOrder,
+    uncertainty: UncertaintyConfig = UncertaintyConfig(),
 ) -> SFResult: ...
 
 
@@ -155,6 +190,7 @@ def sf_from_file(
     time: str = "time",
     value: str = "value",
     error: str = "error",
+    uncertainty: UncertaintyConfig = UncertaintyConfig(),
 ) -> SFResult: ...
 
 
@@ -165,6 +201,7 @@ def pooled_sf_from_files(
     time: str = "time",
     value: str = "value",
     error: str = "error",
+    uncertainty: UncertaintyConfig = UncertaintyConfig(),
 ) -> SFResult: ...
 
 
@@ -175,6 +212,7 @@ def pooled_sf_from_path_list(
     time: str = "time",
     value: str = "value",
     error: str = "error",
+    uncertainty: UncertaintyConfig = UncertaintyConfig(),
 ) -> SFResult: ...
 
 
@@ -186,6 +224,7 @@ def ensemble_sf_from_files(
     time: str = "time",
     value: str = "value",
     error: str = "error",
+    uncertainty: UncertaintyConfig = UncertaintyConfig(),
 ) -> SFResult: ...
 
 
@@ -197,6 +236,7 @@ def ensemble_sf_from_path_list(
     time: str = "time",
     value: str = "value",
     error: str = "error",
+    uncertainty: UncertaintyConfig = UncertaintyConfig(),
 ) -> SFResult: ...
 
 

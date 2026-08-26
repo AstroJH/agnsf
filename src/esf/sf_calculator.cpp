@@ -1,11 +1,41 @@
 #include <esf/sf_calculator.hpp>
 
 #include <esf/bin_accumulator.hpp>
+#include <esf/sf_uncertainty_estimator.hpp>
 
 namespace agnsf {
 namespace esf {
 
 namespace {
+
+/**
+ * Validate the uncertainty configuration for a single SF.
+ *
+ * Measurement supports Analytic (Monte Carlo may be added later);
+ * sampling is an ESF concept and must be Off here.
+ */
+void validate_config(
+    const UncertaintyConfig& config
+)
+{
+    if (config.measurement != UncertaintyMethod::Off &&
+        config.measurement != UncertaintyMethod::Analytic) {
+
+        throw std::invalid_argument(
+            "SFCalculator: measurement uncertainty supports "
+            "only Off or Analytic"
+        );
+    }
+
+    if (config.sampling != UncertaintyMethod::Off) {
+
+        throw std::invalid_argument(
+            "SFCalculator: sampling uncertainty is not defined "
+            "for a single light curve"
+        );
+    }
+}
+
 
 SFResult calculate_impl(
     const double* time,
@@ -13,9 +43,12 @@ SFResult calculate_impl(
     const double* error,
     std::size_t size,
     const LagBins& bins,
-    SFMethod method
+    SFMethod method,
+    const UncertaintyConfig& config
 )
 {
+    validate_config(config);
+
     std::vector<BinAccumulator> accumulators(
         bins.size()
     );
@@ -54,6 +87,15 @@ SFResult calculate_impl(
         }
     }
 
+    // Measurement-uncertainty estimator, created once per call.
+    std::unique_ptr<SFMeasurementUncertaintyEstimator>
+        measurement_estimator;
+
+    if (config.measurement == UncertaintyMethod::Analytic) {
+        measurement_estimator =
+            make_sf_measurement_uncertainty_estimator(method);
+    }
+
     std::vector<SFBinResult> results;
     results.reserve(bins.size());
 
@@ -64,6 +106,11 @@ SFResult calculate_impl(
         result.count = accumulator.count();
         result.sf_squared = accumulator.sf_squared(method);
         result.sf = accumulator.sf(method);
+
+        if (measurement_estimator) {
+            result.measurement =
+                measurement_estimator->estimate(accumulator);
+        }
 
         results.push_back(result);
     }
@@ -79,7 +126,8 @@ SFResult calculate_impl(
 SFResult SFCalculator::calculate(
     const agnsf::LightCurve& data,
     const LagBins& bins,
-    SFMethod method
+    SFMethod method,
+    const UncertaintyConfig& config
 ) const
 {
     return calculate_impl(
@@ -88,7 +136,8 @@ SFResult SFCalculator::calculate(
         data.error_data(),
         data.size(),
         bins,
-        method
+        method,
+        config
     );
 }
 
@@ -96,7 +145,8 @@ SFResult SFCalculator::calculate(
 SFResult SFCalculator::calculate(
     const agnsf::LightCurveView& data,
     const LagBins& bins,
-    SFMethod method
+    SFMethod method,
+    const UncertaintyConfig& config
 ) const
 {
     return calculate_impl(
@@ -105,7 +155,8 @@ SFResult SFCalculator::calculate(
         data.error_data(),
         data.size(),
         bins,
-        method
+        method,
+        config
     );
 }
 

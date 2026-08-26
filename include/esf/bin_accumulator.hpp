@@ -57,6 +57,17 @@ public:
     ) noexcept;
 
     /**
+     * Subtract the accumulated statistics of another accumulator.
+     *
+     * Used for leave-one-curve-out (jackknife) pooled ESF: the
+     * removed curve must previously have been merged into this
+     * accumulator.
+     */
+    void subtract(
+        const BinAccumulator& other
+    ) noexcept;
+
+    /**
      * Number of pairs accumulated in this bin.
      */
     std::size_t count() const noexcept;
@@ -81,6 +92,29 @@ public:
      *   sum(error_i^2 + error_j^2)
      */
     double sum_noise() const noexcept;
+
+    /**
+     * Sum of the fourth power of pair differences:
+     *
+     *   sum(delta^4)
+     *
+     * Used by the analytic measurement-uncertainty estimators.
+     */
+    double sum_delta4() const noexcept;
+
+    /**
+     * Sum of delta^2 times the pair-wise noise term:
+     *
+     *   sum(delta^2 * (error_i^2 + error_j^2))
+     */
+    double sum_delta2_noise() const noexcept;
+
+    /**
+     * Sum of squared pair-wise noise terms:
+     *
+     *   sum((error_i^2 + error_j^2)^2)
+     */
+    double sum_noise2() const noexcept;
 
     /**
      * Structure function squared according to the chosen
@@ -115,6 +149,15 @@ private:
 
     // Accumulated measurement-noise contribution.
     double sum_noise_ = 0.0;
+
+    // Accumulated fourth powers of pair differences.
+    double sum_delta4_ = 0.0;
+
+    // Accumulated delta^2 * noise terms.
+    double sum_delta2_noise_ = 0.0;
+
+    // Accumulated squared noise terms.
+    double sum_noise2_ = 0.0;
 };
 
 } // namespace esf

@@ -42,3 +42,8 @@ CLAUDE.md
 
 # Examples
 examples/
+
+# Data
+*.fits
+*.fit
+*.csv

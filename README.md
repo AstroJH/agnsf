@@ -20,10 +20,10 @@
 - [x] Efficient NumPy interface with zero-copy access for compatible arrays;
   automatic conversion for other inputs
 
-- [ ] Command-line interface for calculating structure functions directly from
+- [x] Command-line interface for calculating structure functions directly from
   light-curve files and writing results to FITS or CSV
 
-- [ ] Python interface supporting both in-memory light curves and file paths
+- [x] Python interface supporting both in-memory light curves and file paths
 
 ## Structure Function Estimators
 
@@ -80,3 +80,91 @@ AGNSF supports two approaches for calculating ensemble structure functions:
     $$
 
   Each contributing light curve is weighted equally within each lag bin. Only light curves with a finite contribution are included in each bin (a finite SF² for the root-mean-square method, a finite SF for the mean method).
+
+## Uncertainty estimation
+
+AGNSF can estimate uncertainties on the structure function for every lag
+bin. Uncertainty is reported as an **asymmetric interval** `[lower, upper]`
+(`SFUncertainty`), where NaN means "not estimated". Symmetric estimates are
+represented by `lower == upper`.
+
+### Configuration
+
+`UncertaintyConfig` controls estimation:
+
+- `measurement` (`Off` / `Analytic`): per-bin measurement uncertainty.
+- `sampling` (`Off` / `Analytic` / `Jackknife` / `Bootstrap`): source-to-source
+  sampling uncertainty **(ESF only)**.
+- `n_bootstrap`, `bootstrap_seed`: bootstrap replicates and RNG seed (fixed
+  seed gives reproducible results).
+
+```python
+import agnsf
+
+cfg = agnsf.UncertaintyConfig()
+cfg.measurement = agnsf.UncertaintyMethod.Analytic
+cfg.sampling    = agnsf.UncertaintyMethod.Bootstrap
+cfg.n_bootstrap = 500
+cfg.bootstrap_seed = 42
+
+r = agnsf.ensemble_sf(times, values, errors, bins, uncertainty=cfg)
+bin0 = r.bins[0]
+
+# point estimate
+bin0.sf
+
+# propagated measurement uncertainty
+(bin0.measurement.lower, bin0.measurement.upper)
+
+# bootstrap 16/84 percentile interval
+(bin0.sampling.lower, bin0.sampling.upper)
+```
+
+### Measurement uncertainty (SF and ESF)
+
+The analytic estimator propagates the **within-bin standard error of the
+mean** of the per-pair quantities to SF:
+
+- Second-order estimators:
+ 
+  $$\mathrm{SE}=
+  \frac{\mathrm{std}(\Delta^2 - \mathrm{noise})}{\sqrt{N}}
+  $$
+  or, for the no-noise variants,
+  $$\mathrm{SE}=
+  \frac{\mathrm{std}(\Delta^2)}{\sqrt{N}}.
+  $$
+
+- Mean-absolute-deviation estimators: the standard error of
+  $\langle|\Delta|\rangle$ is propagated through
+  $$ f(x) = \frac{\pi}{2}x^2 $$
+  using the delta method.
+
+For ESF, per-curve measurement uncertainties are combined in quadrature
+(independence assumption) and propagated through the aggregation.
+
+> Note: pairs sharing points are treated as independent; this is an
+> approximation. A Monte Carlo perturbation option is planned as an
+> alternative.
+
+### Sampling uncertainty (ESF only)
+
+Sampling uncertainty exploits the independence of different light curves:
+
+- `Analytic` (aggregated ESF, default):
+
+  $$
+  \mathrm{SE} =
+  \frac{\mathrm{std}(x_1,\ldots,x_n)}{\sqrt{n}}
+  $$
+  where $x_i$ are the per-curve quantities used by the aggregation.
+
+- `Jackknife`: leave-one-curve-out recomputation of the ESF.
+- `Bootstrap`: curve-level resampling with replacement; the reported interval
+  is the 16th/84th percentile (naturally asymmetric).
+
+`Analytic` sampling is not defined for the pooled ESF (no per-curve values are
+averaged); use `Jackknife` or `Bootstrap` there.
+
+A single light curve never estimates sampling uncertainty (`sampling` stays
+NaN), and measurement/sampling are kept as separate fields by design.

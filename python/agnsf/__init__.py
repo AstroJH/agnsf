@@ -1,6 +1,9 @@
 from ._agnsf import (
     EnsembleMethod,
     SFMethod,
+    UncertaintyMethod,
+    UncertaintyConfig,
+    SFUncertainty,
     LagBins,
     LightCurve,
     SFBinResult,
@@ -22,6 +25,9 @@ from ._agnsf import (
 __all__ = [
     "EnsembleMethod",
     "SFMethod",
+    "UncertaintyMethod",
+    "UncertaintyConfig",
+    "SFUncertainty",
     "LagBins",
     "LightCurve",
     "SFBinResult",

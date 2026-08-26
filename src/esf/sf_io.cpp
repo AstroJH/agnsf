@@ -33,7 +33,8 @@ SFResult sf_from_file(
     const std::string& path,
     const LagBins& bins,
     SFMethod method,
-    const agnsf::io::ColumnNames& columns
+    const agnsf::io::ColumnNames& columns,
+    const UncertaintyConfig& config
 )
 {
     const agnsf::LightCurve light_curve =
@@ -44,7 +45,8 @@ SFResult sf_from_file(
     return calculator.calculate(
         light_curve,
         bins,
-        method
+        method,
+        config
     );
 }
 
@@ -53,7 +55,8 @@ SFResult pooled_sf_from_files(
     const std::vector<std::string>& paths,
     const LagBins& bins,
     SFMethod method,
-    const agnsf::io::ColumnNames& columns
+    const agnsf::io::ColumnNames& columns,
+    const UncertaintyConfig& config
 )
 {
     PooledESFCalculator calculator;
@@ -61,7 +64,8 @@ SFResult pooled_sf_from_files(
     return calculator.calculate(
         load_curves(paths, columns),
         bins,
-        method
+        method,
+        config
     );
 }
 
@@ -70,14 +74,16 @@ SFResult pooled_sf_from_path_list(
     const std::string& path_list_file,
     const LagBins& bins,
     SFMethod method,
-    const agnsf::io::ColumnNames& columns
+    const agnsf::io::ColumnNames& columns,
+    const UncertaintyConfig& config
 )
 {
     return pooled_sf_from_files(
         agnsf::io::read_path_list(path_list_file),
         bins,
         method,
-        columns
+        columns,
+        config
     );
 }
 
@@ -87,7 +93,8 @@ SFResult ensemble_sf_from_files(
     const LagBins& bins,
     SFMethod sf_method,
     SFEnsembleCalculator::Method method,
-    const agnsf::io::ColumnNames& columns
+    const agnsf::io::ColumnNames& columns,
+    const UncertaintyConfig& config
 )
 {
     SFEnsembleCalculator calculator;
@@ -96,7 +103,8 @@ SFResult ensemble_sf_from_files(
         load_curves(paths, columns),
         bins,
         sf_method,
-        method
+        method,
+        config
     );
 }
 
@@ -106,7 +114,8 @@ SFResult ensemble_sf_from_path_list(
     const LagBins& bins,
     SFMethod sf_method,
     SFEnsembleCalculator::Method method,
-    const agnsf::io::ColumnNames& columns
+    const agnsf::io::ColumnNames& columns,
+    const UncertaintyConfig& config
 )
 {
     return ensemble_sf_from_files(
@@ -114,7 +123,8 @@ SFResult ensemble_sf_from_path_list(
         bins,
         sf_method,
         method,
-        columns
+        columns,
+        config
     );
 }
 

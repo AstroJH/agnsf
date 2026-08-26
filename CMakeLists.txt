@@ -201,6 +201,8 @@ add_library(agnsf_esf
     src/esf/lag_bins.cpp
     src/esf/bin_accumulator.cpp
     src/esf/sf_result.cpp
+    src/esf/sf_uncertainty_estimator.cpp
+    src/esf/esf_uncertainty.cpp
     src/esf/sf_calculator.cpp
     src/esf/pooled_esf_calculator.cpp
     src/esf/sf_ensemble_calculator.cpp
@@ -412,3 +414,47 @@ add_test(
 )
 
 
+add_executable(test_sf_uncertainty
+    tests/test_sf_uncertainty.cpp
+)
+
+target_link_libraries(test_sf_uncertainty
+    PRIVATE
+        agnsf_esf
+)
+
+add_test(
+    NAME sf_uncertainty
+    COMMAND test_sf_uncertainty
+)
+
+
+add_executable(test_esf_uncertainty
+    tests/test_esf_uncertainty.cpp
+)
+
+target_link_libraries(test_esf_uncertainty
+    PRIVATE
+        agnsf_esf
+)
+
+add_test(
+    NAME esf_uncertainty
+    COMMAND test_esf_uncertainty
+)
+
+
+
+
+# ----------------------------------------------------------------------
+# Command-line interface
+# ----------------------------------------------------------------------
+
+# add_executable(agnsf
+#     src/cli/main.cpp
+# )
+
+# target_link_libraries(agnsf
+#     PRIVATE
+#         agnsf_esf
+# )

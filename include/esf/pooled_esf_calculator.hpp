@@ -3,9 +3,10 @@
 #include <vector>
 
 #include <esf/sf_method.hpp>
+#include <esf/sf_result.hpp>
+#include <esf/sf_uncertainty.hpp>
 #include <esf/lag_bins.hpp>
 #include <core/light_curve.hpp>
-#include <esf/sf_result.hpp>
 
 namespace agnsf {
 namespace esf {
@@ -28,19 +29,29 @@ namespace esf {
  *
  * No pair-level data are stored; only the accumulated statistics
  * required to compute the final SF are retained.
+ *
+ * Uncertainty (UncertaintyConfig):
+ *
+ *   - measurement: analytic within-bin standard error on the pooled
+ *     pair statistics;
+ *   - sampling: source-to-source scatter via curve-level Jackknife or
+ *     Bootstrap (Analytic is not defined for pooled ESF because no
+ *     per-curve statistics are averaged).
  */
 class PooledESFCalculator {
 public:
     SFResult calculate(
         const std::vector<agnsf::LightCurve>& data,
         const LagBins& bins,
-        SFMethod method = SFMethod::SecondOrder
+        SFMethod method = SFMethod::SecondOrder,
+        const UncertaintyConfig& config = {}
     ) const;
 
     SFResult calculate(
         const std::vector<agnsf::LightCurveView>& data,
         const LagBins& bins,
-        SFMethod method = SFMethod::SecondOrder
+        SFMethod method = SFMethod::SecondOrder,
+        const UncertaintyConfig& config = {}
     ) const;
 };
 

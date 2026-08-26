@@ -3,9 +3,10 @@
 #include <vector>
 
 #include <esf/sf_method.hpp>
+#include <esf/sf_result.hpp>
+#include <esf/sf_uncertainty.hpp>
 #include <esf/lag_bins.hpp>
 #include <core/light_curve.hpp>
-#include <esf/sf_result.hpp>
 
 namespace agnsf {
 namespace esf {
@@ -33,6 +34,14 @@ namespace esf {
  *
  * Each contributing light curve is weighted equally within
  * each lag bin.
+ *
+ * Uncertainty (UncertaintyConfig):
+ *
+ *   - measurement: per-curve measurement uncertainty (Analytic)
+ *     propagated through the aggregation;
+ *   - sampling: source-to-source scatter, either Analytic
+ *     (std/sqrt(n) of the per-curve values) or curve-level
+ *     Jackknife / Bootstrap.
  */
 class SFEnsembleCalculator {
 public:
@@ -48,14 +57,16 @@ public:
         const std::vector<agnsf::LightCurve>& data,
         const LagBins& bins,
         SFMethod sf_method = SFMethod::SecondOrder,
-        Method method = Method::SqrtMeanSquared
+        Method method = Method::SqrtMeanSquared,
+        const UncertaintyConfig& config = {}
     ) const;
 
     SFResult calculate(
         const std::vector<agnsf::LightCurveView>& data,
         const LagBins& bins,
         SFMethod sf_method = SFMethod::SecondOrder,
-        Method method = Method::SqrtMeanSquared
+        Method method = Method::SqrtMeanSquared,
+        const UncertaintyConfig& config = {}
     ) const;
 };
 

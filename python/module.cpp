@@ -14,6 +14,7 @@
 #include <esf/sf_result.hpp>
 #include <esf/sf_ensemble_calculator.hpp>
 #include <esf/sf_io.hpp>
+#include <esf/sf_uncertainty.hpp>
 
 #include <io/light_curve.hpp>
 #include <io/path_list.hpp>
@@ -180,6 +181,78 @@ PYBIND11_MODULE(_agnsf, m)
 
 
     // ------------------------------------------------------------------
+    // SFUncertainty
+    // ------------------------------------------------------------------
+
+    py::class_<agnsf::esf::SFUncertainty>(m, "SFUncertainty")
+        .def_readonly(
+            "lower",
+            &agnsf::esf::SFUncertainty::lower
+        )
+        .def_readonly(
+            "upper",
+            &agnsf::esf::SFUncertainty::upper
+        )
+        .def_property_readonly(
+            "estimated",
+            &agnsf::esf::SFUncertainty::estimated
+        );
+
+
+    // ------------------------------------------------------------------
+    // UncertaintyMethod
+    // ------------------------------------------------------------------
+
+    py::enum_<agnsf::esf::UncertaintyMethod>(
+        m,
+        "UncertaintyMethod"
+    )
+        .value(
+            "Off",
+            agnsf::esf::UncertaintyMethod::Off
+        )
+        .value(
+            "Analytic",
+            agnsf::esf::UncertaintyMethod::Analytic
+        )
+        .value(
+            "Jackknife",
+            agnsf::esf::UncertaintyMethod::Jackknife
+        )
+        .value(
+            "Bootstrap",
+            agnsf::esf::UncertaintyMethod::Bootstrap
+        );
+
+
+    // ------------------------------------------------------------------
+    // UncertaintyConfig
+    // ------------------------------------------------------------------
+
+    py::class_<agnsf::esf::UncertaintyConfig>(
+        m,
+        "UncertaintyConfig"
+    )
+        .def(py::init<>())
+        .def_readwrite(
+            "measurement",
+            &agnsf::esf::UncertaintyConfig::measurement
+        )
+        .def_readwrite(
+            "sampling",
+            &agnsf::esf::UncertaintyConfig::sampling
+        )
+        .def_readwrite(
+            "n_bootstrap",
+            &agnsf::esf::UncertaintyConfig::n_bootstrap
+        )
+        .def_readwrite(
+            "bootstrap_seed",
+            &agnsf::esf::UncertaintyConfig::bootstrap_seed
+        );
+
+
+    // ------------------------------------------------------------------
     // SFBinResult
     // ------------------------------------------------------------------
 
@@ -195,6 +268,14 @@ PYBIND11_MODULE(_agnsf, m)
         .def_readonly(
             "sf",
             &agnsf::esf::SFBinResult::sf
+        )
+        .def_readonly(
+            "measurement",
+            &agnsf::esf::SFBinResult::measurement
+        )
+        .def_readonly(
+            "sampling",
+            &agnsf::esf::SFBinResult::sampling
         );
 
 
@@ -442,7 +523,8 @@ PYBIND11_MODULE(_agnsf, m)
             const Float64Array& value,
             const Float64Array& error,
             const agnsf::esf::LagBins& bins,
-            agnsf::esf::SFMethod method
+            agnsf::esf::SFMethod method,
+            const agnsf::esf::UncertaintyConfig& uncertainty
         )
         {
             const auto light_curve =
@@ -457,7 +539,8 @@ PYBIND11_MODULE(_agnsf, m)
             return calculator.calculate(
                 light_curve,
                 bins,
-                method
+                method,
+                uncertainty
             );
         },
         py::arg("time"),
@@ -466,6 +549,8 @@ PYBIND11_MODULE(_agnsf, m)
         py::arg("bins"),
         py::arg("method") =
             agnsf::esf::SFMethod::SecondOrder,
+        py::arg("uncertainty") =
+            agnsf::esf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the structure function of a single light curve.
 
@@ -480,6 +565,10 @@ method: SFMethod.SecondOrder (default)
             SF^2 = pi/2 * <|delta|>^2 - <sigma_i^2 + sigma_j^2>
         SFMethod.MeanAbsoluteDeviationNoNoise
             SF^2 = pi/2 * <|delta|>^2
+
+uncertainty: UncertaintyConfig; measurement=Analytic estimates the
+            within-bin standard error of the mean propagated to sf.
+            Sampling is not defined for a single light curve.
         )pbdoc"
     );
 
@@ -490,7 +579,8 @@ method: SFMethod.SecondOrder (default)
             const py::list& values,
             const py::list& errors,
             const agnsf::esf::LagBins& bins,
-            agnsf::esf::SFMethod method
+            agnsf::esf::SFMethod method,
+            const agnsf::esf::UncertaintyConfig& uncertainty
         )
         {
             const auto batch =
@@ -505,7 +595,8 @@ method: SFMethod.SecondOrder (default)
             return calculator.calculate(
                 batch.views,
                 bins,
-                method
+                method,
+                uncertainty
             );
         },
         py::arg("times"),
@@ -514,11 +605,17 @@ method: SFMethod.SecondOrder (default)
         py::arg("bins"),
         py::arg("method") =
             agnsf::esf::SFMethod::SecondOrder,
+        py::arg("uncertainty") =
+            agnsf::esf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the pooled ensemble structure function.
 
 All valid pairs from all light curves are pooled into the same
 lag bins. See sf() for the available SFMethod estimators.
+
+uncertainty: UncertaintyConfig; measurement=Analytic uses the pooled
+            pair statistics; sampling supports Jackknife / Bootstrap
+            (curve-level). Analytic sampling is not defined here.
         )pbdoc"
     );
 
@@ -562,7 +659,8 @@ lag bins. See sf() for the available SFMethod estimators.
             const py::list& errors,
             const agnsf::esf::LagBins& bins,
             agnsf::esf::SFEnsembleCalculator::Method method,
-            agnsf::esf::SFMethod sf_method
+            agnsf::esf::SFMethod sf_method,
+            const agnsf::esf::UncertaintyConfig& uncertainty
         )
         {
             const auto batch =
@@ -578,7 +676,8 @@ lag bins. See sf() for the available SFMethod estimators.
                 batch.views,
                 bins,
                 sf_method,
-                method
+                method,
+                uncertainty
             );
         },
         py::arg("times"),
@@ -589,6 +688,8 @@ lag bins. See sf() for the available SFMethod estimators.
             agnsf::esf::SFEnsembleCalculator::Method::SqrtMeanSquared,
         py::arg("sf_method") =
             agnsf::esf::SFMethod::SecondOrder,
+        py::arg("uncertainty") =
+            agnsf::esf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the aggregated ensemble structure function.
 
@@ -603,6 +704,10 @@ method: EnsembleMethod.SqrtMeanSquared (default)
 
 sf_method: SFMethod.SecondOrder (default)
             see sf() for the available estimators.
+
+uncertainty: UncertaintyConfig; measurement=Analytic propagates the
+            per-curve measurement; sampling supports Analytic
+            (default), Jackknife or Bootstrap.
 
 Only light curves with a finite contribution are included in
 each lag bin. Each contributing light curve is weighted equally.
@@ -697,7 +802,8 @@ line with space-separated values.
             agnsf::esf::SFMethod method,
             const std::string& time,
             const std::string& value,
-            const std::string& error
+            const std::string& error,
+            const agnsf::esf::UncertaintyConfig& uncertainty
         )
         {
             agnsf::io::ColumnNames columns;
@@ -709,7 +815,8 @@ line with space-separated values.
                 path,
                 bins,
                 method,
-                columns
+                columns,
+                uncertainty
             );
         },
         py::arg("path"),
@@ -719,12 +826,15 @@ line with space-separated values.
         py::arg("time") = "time",
         py::arg("value") = "value",
         py::arg("error") = "error",
+        py::arg("uncertainty") =
+            agnsf::esf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the structure function of one light-curve file (CSV or FITS).
 
 path:  light-curve file
 bins:  LagBins
 method: SFMethod estimator (see sf())
+uncertainty: UncertaintyConfig (see sf())
         )pbdoc"
     );
 
@@ -736,7 +846,8 @@ method: SFMethod estimator (see sf())
             agnsf::esf::SFMethod method,
             const std::string& time,
             const std::string& value,
-            const std::string& error
+            const std::string& error,
+            const agnsf::esf::UncertaintyConfig& uncertainty
         )
         {
             std::vector<std::string> path_vector;
@@ -757,7 +868,8 @@ method: SFMethod estimator (see sf())
                 path_vector,
                 bins,
                 method,
-                columns
+                columns,
+                uncertainty
             );
         },
         py::arg("paths"),
@@ -767,6 +879,8 @@ method: SFMethod estimator (see sf())
         py::arg("time") = "time",
         py::arg("value") = "value",
         py::arg("error") = "error",
+        py::arg("uncertainty") =
+            agnsf::esf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the pooled ensemble structure function from a list of
 light-curve files (CSV or FITS).
@@ -781,7 +895,8 @@ light-curve files (CSV or FITS).
             agnsf::esf::SFMethod method,
             const std::string& time,
             const std::string& value,
-            const std::string& error
+            const std::string& error,
+            const agnsf::esf::UncertaintyConfig& uncertainty
         )
         {
             agnsf::io::ColumnNames columns;
@@ -793,7 +908,8 @@ light-curve files (CSV or FITS).
                 path_list_file,
                 bins,
                 method,
-                columns
+                columns,
+                uncertainty
             );
         },
         py::arg("path_list_file"),
@@ -803,6 +919,8 @@ light-curve files (CSV or FITS).
         py::arg("time") = "time",
         py::arg("value") = "value",
         py::arg("error") = "error",
+        py::arg("uncertainty") =
+            agnsf::esf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the pooled ensemble structure function from a text file that
 lists the light-curve paths (one per line).
@@ -818,7 +936,8 @@ lists the light-curve paths (one per line).
             agnsf::esf::SFMethod sf_method,
             const std::string& time,
             const std::string& value,
-            const std::string& error
+            const std::string& error,
+            const agnsf::esf::UncertaintyConfig& uncertainty
         )
         {
             std::vector<std::string> path_vector;
@@ -840,7 +959,8 @@ lists the light-curve paths (one per line).
                 bins,
                 sf_method,
                 method,
-                columns
+                columns,
+                uncertainty
             );
         },
         py::arg("paths"),
@@ -852,12 +972,15 @@ lists the light-curve paths (one per line).
         py::arg("time") = "time",
         py::arg("value") = "value",
         py::arg("error") = "error",
+        py::arg("uncertainty") =
+            agnsf::esf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the aggregated ensemble structure function from a list of
 light-curve files (CSV or FITS).
 
 method:    EnsembleMethod combination method
 sf_method: SFMethod per-curve estimator
+uncertainty: UncertaintyConfig (see ensemble_sf())
         )pbdoc"
     );
 
@@ -870,7 +993,8 @@ sf_method: SFMethod per-curve estimator
             agnsf::esf::SFMethod sf_method,
             const std::string& time,
             const std::string& value,
-            const std::string& error
+            const std::string& error,
+            const agnsf::esf::UncertaintyConfig& uncertainty
         )
         {
             agnsf::io::ColumnNames columns;
@@ -883,7 +1007,8 @@ sf_method: SFMethod per-curve estimator
                 bins,
                 sf_method,
                 method,
-                columns
+                columns,
+                uncertainty
             );
         },
         py::arg("path_list_file"),
@@ -895,6 +1020,8 @@ sf_method: SFMethod per-curve estimator
         py::arg("time") = "time",
         py::arg("value") = "value",
         py::arg("error") = "error",
+        py::arg("uncertainty") =
+            agnsf::esf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the aggregated ensemble structure function from a text file
 that lists the light-curve paths (one per line).

@@ -2,10 +2,12 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <stdexcept>
 #include <thread>
 #include <utility>
 #include <vector>
 
+#include "esf_uncertainty.hpp"
 #include <esf/sf_calculator.hpp>
 #include <esf/sf_ensemble_calculator.hpp>
 
@@ -15,7 +17,8 @@ namespace esf {
 namespace {
 
 /**
- * Turn accumulated per-bin statistics into an SFResult.
+ * Turn accumulated per-bin statistics into an SFResult (point
+ * estimate only; uncertainty fields are filled separately).
  *
  * For SqrtMeanSquared, sum holds the sum of per-curve SF^2 values
  * and the result is:
@@ -28,11 +31,8 @@ namespace {
  *
  *   SF   = sum / count
  *   SF^2 = SF^2
- *
- * The SF^2 field is kept consistent with SF in both modes so that
- * sf = sqrt(sf_squared) always holds for finite results.
  */
-SFResult make_result(
+std::vector<SFBinResult> make_result(
     const std::vector<double>& sum,
     const std::vector<std::size_t>& count,
     SFEnsembleCalculator::Method method
@@ -78,7 +78,214 @@ SFResult make_result(
         results.push_back(result);
     }
 
-    return SFResult(std::move(results));
+    return results;
+}
+
+
+/**
+ * True when the aggregated working scale is SF^2 (SqrtMeanSquared);
+ * for MeanSf the working scale is SF itself.
+ */
+bool uses_squared_scale(
+    SFEnsembleCalculator::Method method
+)
+{
+    return method ==
+        SFEnsembleCalculator::Method::SqrtMeanSquared;
+}
+
+
+void validate_config(
+    const UncertaintyConfig& config
+)
+{
+    if (config.measurement != UncertaintyMethod::Off &&
+        config.measurement != UncertaintyMethod::Analytic) {
+
+        throw std::invalid_argument(
+            "SFEnsembleCalculator: measurement uncertainty supports "
+            "only Off or Analytic"
+        );
+    }
+
+    if (config.sampling == UncertaintyMethod::Bootstrap &&
+        config.n_bootstrap == 0) {
+
+        throw std::invalid_argument(
+            "SFEnsembleCalculator: n_bootstrap must be >= 1"
+        );
+    }
+}
+
+
+/**
+ * Fill the measurement uncertainty of every bin.
+ *
+ * Per-curve measurement uncertainties (half-widths on sf) are
+ * combined in quadrature under the independence assumption:
+ *
+ *   MeanSf:            sigma^2 = sum(hw_k^2) / n_meas^2
+ *   SqrtMeanSquared:   sigma(sf^2)_k ~= 2 * sf_k * hw_k   (delta method)
+ *
+ * The combined sigma is applied on the working scale and mapped to sf
+ * (sqrt mapping makes the result asymmetric for SqrtMeanSquared).
+ */
+void fill_measurement(
+    std::vector<SFBinResult>& results,
+    const std::vector<double>& meas2,
+    const std::vector<std::size_t>& meas_count,
+    SFEnsembleCalculator::Method method
+)
+{
+    const bool sqrt_transform =
+        uses_squared_scale(method);
+
+    for (std::size_t j = 0; j < results.size(); ++j) {
+
+        const double n_meas =
+            static_cast<double>(meas_count[j]);
+
+        if (n_meas < 1.0 ||
+            !std::isfinite(results[j].sf)) {
+            continue;
+        }
+
+        const double sigma =
+            std::sqrt(meas2[j]) / n_meas;
+
+        // Working-scale mean (SF for MeanSf, SF^2 for SqrtMeanSquared).
+        const double working_mean =
+            sqrt_transform
+                ? results[j].sf_squared
+                : results[j].sf;
+
+        SFUncertainty working;
+        working.lower = working_mean - sigma;
+        working.upper = working_mean + sigma;
+
+        results[j].measurement =
+            detail::map_interval_to_sf(
+                working,
+                sqrt_transform
+            );
+    }
+}
+
+
+/**
+ * Fill the sampling uncertainty of every bin.
+ *
+ * All methods operate on the per-curve values (SF for MeanSf, SF^2
+ * for SqrtMeanSquared) and produce an interval on sf:
+ *
+ *   Analytic:  mean +/- std/sqrt(n) on the working scale, mapped to sf
+ *   Jackknife: leave-one-curve-out, sigma centered on the point value
+ *   Bootstrap: 16/84 percentile interval of resampled statistics
+ */
+void fill_sampling(
+    std::vector<SFBinResult>& results,
+    const std::vector<double>& sum,
+    const std::vector<double>& sum2,
+    const std::vector<std::size_t>& count,
+    const std::vector<std::vector<double>>& values,
+    SFEnsembleCalculator::Method method,
+    const UncertaintyConfig& config
+)
+{
+    const bool sqrt_transform =
+        uses_squared_scale(method);
+
+    for (std::size_t j = 0; j < results.size(); ++j) {
+
+        if (!std::isfinite(results[j].sf)) {
+            continue;
+        }
+
+        SFUncertainty interval;
+
+        switch (config.sampling) {
+
+            case UncertaintyMethod::Analytic: {
+
+                const double n =
+                    static_cast<double>(count[j]);
+
+                if (count[j] < 2) {
+                    break;
+                }
+
+                const double mean = sum[j] / n;
+
+                double sample_var =
+                    (sum2[j] - n * mean * mean) /
+                    (n - 1.0);
+
+                sample_var =
+                    std::max(sample_var, 0.0);
+
+                const double se =
+                    std::sqrt(sample_var / n);
+
+                interval.lower = mean - se;
+                interval.upper = mean + se;
+
+                interval =
+                    detail::map_interval_to_sf(
+                        interval,
+                        sqrt_transform
+                    );
+                break;
+            }
+
+            case UncertaintyMethod::Jackknife: {
+
+                // Collect the finite per-curve values of this bin.
+                std::vector<double> bin_values;
+
+                for (const auto& row : values) {
+                    const double value = row[j];
+
+                    if (std::isfinite(value)) {
+                        bin_values.push_back(value);
+                    }
+                }
+
+                interval =
+                    detail::jackknife_interval(
+                        bin_values,
+                        sqrt_transform
+                    );
+                break;
+            }
+
+            case UncertaintyMethod::Bootstrap: {
+
+                std::vector<double> bin_values;
+
+                for (const auto& row : values) {
+                    const double value = row[j];
+
+                    if (std::isfinite(value)) {
+                        bin_values.push_back(value);
+                    }
+                }
+
+                interval =
+                    detail::bootstrap_interval(
+                        bin_values,
+                        config.n_bootstrap,
+                        config.bootstrap_seed,
+                        sqrt_transform
+                    );
+                break;
+            }
+
+            case UncertaintyMethod::Off:
+                break;
+        }
+
+        results[j].sampling = interval;
+    }
 }
 
 
@@ -86,9 +293,22 @@ SFResult calculate_ensemble(
     const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
     SFMethod sf_method,
-    SFEnsembleCalculator::Method method
+    SFEnsembleCalculator::Method method,
+    const UncertaintyConfig& config
 )
 {
+    validate_config(config);
+
+    const bool want_measurement =
+        config.measurement != UncertaintyMethod::Off;
+
+    const bool want_analytic_sampling =
+        config.sampling == UncertaintyMethod::Analytic;
+
+    const bool want_resampling =
+        config.sampling == UncertaintyMethod::Jackknife ||
+        config.sampling == UncertaintyMethod::Bootstrap;
+
     if (data.empty()) {
 
         const std::vector<double> sum(
@@ -101,10 +321,8 @@ SFResult calculate_ensemble(
             0
         );
 
-        return make_result(
-            sum,
-            count,
-            method
+        return SFResult(
+            make_result(sum, count, method)
         );
     }
 
@@ -122,6 +340,12 @@ SFResult calculate_ensemble(
 
     /*
      * Each thread has its own partial results.
+     *
+     * thread_sum / thread_count      : point estimate (existing)
+     * thread_sum2                    : sum of squared per-curve values
+     *                                  (analytic sampling)
+     * thread_meas2 / thread_meas_count : per-curve measurement
+     *                                  variance sum (measurement)
      */
     std::vector<std::vector<double>> thread_sum(
         n_threads,
@@ -132,6 +356,47 @@ SFResult calculate_ensemble(
         n_threads,
         std::vector<std::size_t>(bins.size(), 0)
     );
+
+    std::vector<std::vector<double>> thread_sum2;
+
+    if (want_analytic_sampling) {
+        thread_sum2.assign(
+            n_threads,
+            std::vector<double>(bins.size(), 0.0)
+        );
+    }
+
+    std::vector<std::vector<double>> thread_meas2;
+
+    std::vector<std::vector<std::size_t>> thread_meas_count;
+
+    if (want_measurement) {
+        thread_meas2.assign(
+            n_threads,
+            std::vector<double>(bins.size(), 0.0)
+        );
+
+        thread_meas_count.assign(
+            n_threads,
+            std::vector<std::size_t>(bins.size(), 0)
+        );
+    }
+
+    /*
+     * Per-curve values (SF or SF^2) retained for jackknife /
+     * bootstrap sampling. Each thread writes only its own rows.
+     */
+    std::vector<std::vector<double>> values;
+
+    if (want_resampling) {
+        values.assign(
+            data.size(),
+            std::vector<double>(
+                bins.size(),
+                std::numeric_limits<double>::quiet_NaN()
+            )
+        );
+    }
 
 
     const std::size_t chunk_size =
@@ -157,9 +422,18 @@ SFResult calculate_ensemble(
             );
 
         threads.emplace_back(
-            [&, thread_id, begin, end, sf_method, method]() {
+            [&, thread_id, begin, end]() {
 
                 SFCalculator sf_calculator;
+
+                // Per-curve SF keeps the measurement component;
+                // sampling is handled at the ensemble level.
+                const UncertaintyConfig per_curve_config{
+                    config.measurement,
+                    UncertaintyMethod::Off,
+                    0,
+                    0
+                };
 
                 for (std::size_t i = begin;
                      i < end;
@@ -169,7 +443,8 @@ SFResult calculate_ensemble(
                         sf_calculator.calculate(
                             data[i],
                             bins,
-                            sf_method
+                            sf_method,
+                            per_curve_config
                         );
 
                     for (std::size_t j = 0;
@@ -194,6 +469,51 @@ SFResult calculate_ensemble(
                             contribution;
 
                         ++thread_count[thread_id][j];
+
+                        if (want_analytic_sampling) {
+                            thread_sum2[thread_id][j] +=
+                                contribution * contribution;
+                        }
+
+                        if (want_resampling) {
+                            values[i][j] = contribution;
+                        }
+
+                        if (want_measurement) {
+
+                            const SFUncertainty& measurement =
+                                result.bin(j).measurement;
+
+                            if (!measurement.estimated()) {
+                                continue;
+                            }
+
+                            const double half_width =
+                                (
+                                    measurement.upper -
+                                    measurement.lower
+                                ) / 2.0;
+
+                            if (!std::isfinite(half_width)) {
+                                continue;
+                            }
+
+                            /*
+                             * Working-scale sigma of this curve:
+                             *   MeanSf:          sigma = half_width
+                             *   SqrtMeanSquared: sigma(sf^2) ~= 2*sf*hw
+                             */
+                            const double working_sigma =
+                                uses_squared_scale(method)
+                                    ? 2.0 * result.bin(j).sf *
+                                      half_width
+                                    : half_width;
+
+                            thread_meas2[thread_id][j] +=
+                                working_sigma * working_sigma;
+
+                            ++thread_meas_count[thread_id][j];
+                        }
                     }
                 }
             }
@@ -219,6 +539,21 @@ SFResult calculate_ensemble(
         0
     );
 
+    std::vector<double> sum2(
+        bins.size(),
+        0.0
+    );
+
+    std::vector<double> meas2(
+        bins.size(),
+        0.0
+    );
+
+    std::vector<std::size_t> meas_count(
+        bins.size(),
+        0
+    );
+
     for (std::size_t thread_id = 0;
          thread_id < n_threads;
          ++thread_id) {
@@ -232,14 +567,49 @@ SFResult calculate_ensemble(
 
             count[i] +=
                 thread_count[thread_id][i];
+
+            if (want_analytic_sampling) {
+                sum2[i] +=
+                    thread_sum2[thread_id][i];
+            }
+
+            if (want_measurement) {
+                meas2[i] +=
+                    thread_meas2[thread_id][i];
+
+                meas_count[i] +=
+                    thread_meas_count[thread_id][i];
+            }
         }
     }
 
-    return make_result(
-        sum,
-        count,
-        method
-    );
+
+    // Fill uncertainty fields on the result bins.
+    std::vector<SFBinResult> bins_out =
+        make_result(sum, count, method);
+
+    if (want_measurement) {
+        fill_measurement(
+            bins_out,
+            meas2,
+            meas_count,
+            method
+        );
+    }
+
+    if (config.sampling != UncertaintyMethod::Off) {
+        fill_sampling(
+            bins_out,
+            sum,
+            sum2,
+            count,
+            values,
+            method,
+            config
+        );
+    }
+
+    return SFResult(std::move(bins_out));
 }
 
 } // namespace
@@ -249,7 +619,8 @@ SFResult SFEnsembleCalculator::calculate(
     const std::vector<agnsf::LightCurve>& data,
     const LagBins& bins,
     SFMethod sf_method,
-    Method method
+    Method method,
+    const UncertaintyConfig& config
 ) const
 {
     std::vector<agnsf::LightCurveView> views;
@@ -263,7 +634,8 @@ SFResult SFEnsembleCalculator::calculate(
         views,
         bins,
         sf_method,
-        method
+        method,
+        config
     );
 }
 
@@ -272,14 +644,16 @@ SFResult SFEnsembleCalculator::calculate(
     const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
     SFMethod sf_method,
-    Method method
+    Method method,
+    const UncertaintyConfig& config
 ) const
 {
     return calculate_ensemble(
         data,
         bins,
         sf_method,
-        method
+        method,
+        config
     );
 }
 

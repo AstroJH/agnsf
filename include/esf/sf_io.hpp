@@ -13,6 +13,7 @@
 #include <esf/sf_ensemble_calculator.hpp>
 #include <esf/sf_method.hpp>
 #include <esf/sf_result.hpp>
+#include <esf/sf_uncertainty.hpp>
 
 namespace agnsf {
 namespace esf {
@@ -24,7 +25,8 @@ SFResult sf_from_file(
     const std::string& path,
     const LagBins& bins,
     SFMethod method = SFMethod::SecondOrder,
-    const agnsf::io::ColumnNames& columns = {}
+    const agnsf::io::ColumnNames& columns = {},
+    const UncertaintyConfig& config = {}
 );
 
 
@@ -35,7 +37,8 @@ SFResult pooled_sf_from_files(
     const std::vector<std::string>& paths,
     const LagBins& bins,
     SFMethod method = SFMethod::SecondOrder,
-    const agnsf::io::ColumnNames& columns = {}
+    const agnsf::io::ColumnNames& columns = {},
+    const UncertaintyConfig& config = {}
 );
 
 
@@ -47,7 +50,8 @@ SFResult pooled_sf_from_path_list(
     const std::string& path_list_file,
     const LagBins& bins,
     SFMethod method = SFMethod::SecondOrder,
-    const agnsf::io::ColumnNames& columns = {}
+    const agnsf::io::ColumnNames& columns = {},
+    const UncertaintyConfig& config = {}
 );
 
 
@@ -61,7 +65,8 @@ SFResult ensemble_sf_from_files(
     SFMethod sf_method = SFMethod::SecondOrder,
     SFEnsembleCalculator::Method method =
         SFEnsembleCalculator::Method::SqrtMeanSquared,
-    const agnsf::io::ColumnNames& columns = {}
+    const agnsf::io::ColumnNames& columns = {},
+    const UncertaintyConfig& config = {}
 );
 
 
@@ -75,7 +80,8 @@ SFResult ensemble_sf_from_path_list(
     SFMethod sf_method = SFMethod::SecondOrder,
     SFEnsembleCalculator::Method method =
         SFEnsembleCalculator::Method::SqrtMeanSquared,
-    const agnsf::io::ColumnNames& columns = {}
+    const agnsf::io::ColumnNames& columns = {},
+    const UncertaintyConfig& config = {}
 );
 
 

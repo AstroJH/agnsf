@@ -27,6 +27,13 @@ void BinAccumulator::add(
     sum_delta_squared_ += delta_squared;
     sum_abs_delta_ += std::abs(delta);
     sum_noise_ += noise;
+
+    // Additional pair-level sums used by the analytic
+    // measurement-uncertainty estimators.
+    sum_delta4_ += delta_squared * delta_squared;
+    sum_delta2_noise_ += delta_squared * noise;
+    sum_noise2_ += noise * noise;
+
     ++count_;
 }
 
@@ -39,6 +46,23 @@ void BinAccumulator::merge(
     sum_delta_squared_ += other.sum_delta_squared_;
     sum_abs_delta_ += other.sum_abs_delta_;
     sum_noise_ += other.sum_noise_;
+    sum_delta4_ += other.sum_delta4_;
+    sum_delta2_noise_ += other.sum_delta2_noise_;
+    sum_noise2_ += other.sum_noise2_;
+}
+
+
+void BinAccumulator::subtract(
+    const BinAccumulator& other
+) noexcept
+{
+    count_ -= other.count_;
+    sum_delta_squared_ -= other.sum_delta_squared_;
+    sum_abs_delta_ -= other.sum_abs_delta_;
+    sum_noise_ -= other.sum_noise_;
+    sum_delta4_ -= other.sum_delta4_;
+    sum_delta2_noise_ -= other.sum_delta2_noise_;
+    sum_noise2_ -= other.sum_noise2_;
 }
 
 
@@ -67,6 +91,27 @@ double
 BinAccumulator::sum_noise() const noexcept
 {
     return sum_noise_;
+}
+
+
+double
+BinAccumulator::sum_delta4() const noexcept
+{
+    return sum_delta4_;
+}
+
+
+double
+BinAccumulator::sum_delta2_noise() const noexcept
+{
+    return sum_delta2_noise_;
+}
+
+
+double
+BinAccumulator::sum_noise2() const noexcept
+{
+    return sum_noise2_;
 }
 
 
