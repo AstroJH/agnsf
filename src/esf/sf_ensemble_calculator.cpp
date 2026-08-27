@@ -294,10 +294,26 @@ SFResult calculate_ensemble(
     const LagBins& bins,
     SFMethod sf_method,
     SFEnsembleCalculator::Method method,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift,
+    const std::vector<double>* redshifts  // nullptr => scalar redshift
 )
 {
     validate_config(config);
+
+    if (redshifts != nullptr &&
+        redshifts->size() != data.size()) {
+
+        throw std::invalid_argument(
+            "redshifts size must match the number of light curves"
+        );
+    }
+
+    if (redshift <= -1.0) {
+        throw std::invalid_argument(
+            "redshift must be > -1"
+        );
+    }
 
     const bool want_measurement =
         config.measurement != UncertaintyMethod::Off;
@@ -439,12 +455,18 @@ SFResult calculate_ensemble(
                      i < end;
                      ++i) {
 
+                    const double curve_redshift =
+                        redshifts != nullptr
+                            ? (*redshifts)[i]
+                            : redshift;
+
                     const SFResult result =
                         sf_calculator.calculate(
                             data[i],
                             bins,
                             sf_method,
-                            per_curve_config
+                            per_curve_config,
+                            curve_redshift
                         );
 
                     for (std::size_t j = 0;
@@ -620,7 +642,8 @@ SFResult SFEnsembleCalculator::calculate(
     const LagBins& bins,
     SFMethod sf_method,
     Method method,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 ) const
 {
     std::vector<agnsf::LightCurveView> views;
@@ -635,7 +658,8 @@ SFResult SFEnsembleCalculator::calculate(
         bins,
         sf_method,
         method,
-        config
+        config,
+        redshift
     );
 }
 
@@ -645,7 +669,8 @@ SFResult SFEnsembleCalculator::calculate(
     const LagBins& bins,
     SFMethod sf_method,
     Method method,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 ) const
 {
     return calculate_ensemble(
@@ -653,7 +678,57 @@ SFResult SFEnsembleCalculator::calculate(
         bins,
         sf_method,
         method,
-        config
+        config,
+        redshift,
+        nullptr
+    );
+}
+
+
+SFResult SFEnsembleCalculator::calculate(
+    const std::vector<agnsf::LightCurve>& data,
+    const LagBins& bins,
+    SFMethod sf_method,
+    Method method,
+    const UncertaintyConfig& config,
+    const std::vector<double>& redshifts
+) const
+{
+    std::vector<agnsf::LightCurveView> views;
+    views.reserve(data.size());
+
+    for (const auto& light_curve : data) {
+        views.push_back(light_curve.view());
+    }
+
+    return calculate(
+        views,
+        bins,
+        sf_method,
+        method,
+        config,
+        redshifts
+    );
+}
+
+
+SFResult SFEnsembleCalculator::calculate(
+    const std::vector<agnsf::LightCurveView>& data,
+    const LagBins& bins,
+    SFMethod sf_method,
+    Method method,
+    const UncertaintyConfig& config,
+    const std::vector<double>& redshifts
+) const
+{
+    return calculate_ensemble(
+        data,
+        bins,
+        sf_method,
+        method,
+        config,
+        0.0,
+        &redshifts
     );
 }
 

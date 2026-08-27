@@ -241,6 +241,7 @@ target_link_libraries(_agnsf
 # Install
 # ----------------------------------------------------------------------
 
+# Install the Python extension into the agnsf package.
 install(
     TARGETS _agnsf
     LIBRARY DESTINATION agnsf
@@ -444,6 +445,21 @@ add_test(
 )
 
 
+add_executable(test_redshift
+    tests/test_redshift.cpp
+)
+
+target_link_libraries(test_redshift
+    PRIVATE
+        agnsf_esf
+)
+
+add_test(
+    NAME redshift
+    COMMAND test_redshift
+)
+
+
 
 
 # ----------------------------------------------------------------------
@@ -458,3 +474,16 @@ target_link_libraries(agnsf
     PRIVATE
         agnsf_esf
 )
+
+if(DEFINED SKBUILD)
+    # Install the CLI into the Python environment's bin/Scripts directory.
+    install(
+        TARGETS agnsf
+        RUNTIME DESTINATION "${SKBUILD_SCRIPTS_DIR}"
+    )
+else()
+    install(
+        TARGETS agnsf
+        RUNTIME DESTINATION bin
+    )
+endif()

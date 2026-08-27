@@ -147,6 +147,9 @@ struct Options {
     // Column names.
     agnsf::io::ColumnNames columns;
 
+    // Global redshift (single light-curve input).
+    double redshift = 0.0;
+
     // Output policy.
     bool clobber = false;
 };
@@ -185,6 +188,11 @@ void print_help(std::ostream& out)
         "                             When omitted, a linear grid from 0 to\n"
         "                             the maximum observed lag (20 bins) is\n"
         "                             used, or an interactive prompt is shown.\n"
+        "  --redshift <z>              source redshift; lags are converted to\n"
+        "                             the rest frame (dt/(1+z)). Only valid\n"
+        "                             for single light-curve input; for '@'\n"
+        "                             inputs, use the optional z column in\n"
+        "                             the path-list file.\n"
         "\n"
         "Uncertainty:\n"
         "  --measurement <mode>        off (default) | analytic\n"
@@ -401,6 +409,9 @@ Options parse_args(int argc, char* argv[])
                 );
         } else if (name == "--bins") {
             options.bins_spec = need_value(i, name, inline_value);
+        } else if (name == "--redshift") {
+            options.redshift =
+                parse_double(need_value(i, name, inline_value), "--redshift");
         } else if (name == "--columns") {
             const std::vector<std::string> names =
                 split(need_value(i, name, inline_value), ',');
@@ -587,6 +598,11 @@ LagBins make_bins(
 struct InputData {
     bool is_esf = false;
     std::vector<agnsf::LightCurve> curves;
+
+    // Per-curve redshifts (ESF from a path-list file); empty for
+    // single light-curve input.
+    std::vector<double> redshifts;
+
     double max_lag = 0.0;
 };
 
@@ -608,20 +624,34 @@ InputData load_input(const Options& options)
 
     if (!input.empty() && input[0] == '@') {
 
-        // Path-list file -> ESF.
+        // Path-list file -> ESF. Per-curve redshifts are read from
+        // the optional second column.
         data.is_esf = true;
+
+        if (options.redshift != 0.0) {
+            fail(
+                "--redshift is only valid for single light-curve input; "
+                "use the optional z column in the path-list file"
+            );
+        }
 
         const std::string path_list_file = input.substr(1);
 
-        const std::vector<std::string> paths =
-            agnsf::io::read_path_list(path_list_file);
+        const std::vector<agnsf::io::PathEntry> entries =
+            agnsf::io::read_path_list_with_redshift(path_list_file);
 
-        if (paths.empty()) {
+        if (entries.empty()) {
             fail("path-list file '" + path_list_file + "' contains no paths");
         }
 
-        for (const auto& path : paths) {
-            data.curves.push_back(load_curve(path, options.columns));
+        for (const auto& entry : entries) {
+            // Observed-frame light curves; the per-source redshift is
+            // kept as metadata and applied inside the calculator.
+            data.curves.push_back(
+                load_curve(entry.path, options.columns)
+            );
+
+            data.redshifts.push_back(entry.redshift);
         }
 
     } else {
@@ -631,8 +661,10 @@ InputData load_input(const Options& options)
         data.curves.push_back(load_curve(input, options.columns));
     }
 
-    // Maximum observed lag, used for the default bin grid.
-    for (const auto& curve : data.curves) {
+    // Maximum rest-frame lag, used for the default bin grid.
+    for (std::size_t i = 0; i < data.curves.size(); ++i) {
+        const auto& curve = data.curves[i];
+
         if (curve.size() < 2) {
             continue;
         }
@@ -640,7 +672,14 @@ InputData load_input(const Options& options)
         const double curve_lag =
             curve.time().back() - curve.time().front();
 
-        data.max_lag = std::max(data.max_lag, curve_lag);
+        const double redshift =
+            data.is_esf ? data.redshifts[i] : options.redshift;
+
+        // NOTE: Bins are interpreted in the rest frame.
+        data.max_lag = std::max(
+            data.max_lag,
+            curve_lag / (1.0 + redshift)
+        );
     }
 
     return data;
@@ -667,7 +706,8 @@ SFResult compute(
                 data.curves,
                 bins,
                 options.method,
-                options.uncertainty
+                options.uncertainty,
+                data.redshifts
             );
         }
 
@@ -678,7 +718,8 @@ SFResult compute(
             bins,
             options.method,
             options.ensemble_method,
-            options.uncertainty
+            options.uncertainty,
+            data.redshifts
         );
     }
 
@@ -688,7 +729,8 @@ SFResult compute(
         data.curves.front(),
         bins,
         options.method,
-        options.uncertainty
+        options.uncertainty,
+        options.redshift
     );
 }
 
@@ -759,7 +801,15 @@ void print_settings(
     std::cout
         << "#   bins:   " << bins.size() << " bins in ["
         << format_double(bins.min()) << ", "
-        << format_double(bins.max()) << ")\n"
+        << format_double(bins.max()) << ")\n";
+
+    if (data.is_esf) {
+        std::cout << "#   redshift: per curve (path-list z column)\n";
+    } else {
+        std::cout << "#   redshift: " << options.redshift << "\n";
+    }
+
+    std::cout
         << "#   measurement uncertainty: "
         << uncertainty_method_name(options.uncertainty.measurement) << "\n"
         << "#   sampling uncertainty: "

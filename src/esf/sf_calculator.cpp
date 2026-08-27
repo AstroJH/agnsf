@@ -44,10 +44,20 @@ SFResult calculate_impl(
     std::size_t size,
     const LagBins& bins,
     SFMethod method,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 )
 {
     validate_config(config);
+
+    if (redshift <= -1.0) {
+        throw std::invalid_argument(
+            "redshift must be > -1"
+        );
+    }
+
+    // Rest-frame lag scale
+    const double lag_scale = 1.0 / (1.0 + redshift);
 
     std::vector<BinAccumulator> accumulators(
         bins.size()
@@ -58,9 +68,8 @@ SFResult calculate_impl(
 
     for (std::size_t i = 0; i < size; ++i) {
         for (std::size_t j = i + 1; j < size; ++j) {
-
-            const double lag =
-                time[j] - time[i];
+            const double dt = time[j] - time[i];
+            const double lag = dt * lag_scale; // to rest frame
 
             if (lag >= max_lag) {
                 break;
@@ -127,7 +136,8 @@ SFResult SFCalculator::calculate(
     const agnsf::LightCurve& data,
     const LagBins& bins,
     SFMethod method,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 ) const
 {
     return calculate_impl(
@@ -137,7 +147,8 @@ SFResult SFCalculator::calculate(
         data.size(),
         bins,
         method,
-        config
+        config,
+        redshift
     );
 }
 
@@ -146,7 +157,8 @@ SFResult SFCalculator::calculate(
     const agnsf::LightCurveView& data,
     const LagBins& bins,
     SFMethod method,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 ) const
 {
     return calculate_impl(
@@ -156,7 +168,8 @@ SFResult SFCalculator::calculate(
         data.size(),
         bins,
         method,
-        config
+        config,
+        redshift
     );
 }
 

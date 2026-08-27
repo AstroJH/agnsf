@@ -26,7 +26,8 @@ SFResult sf_from_file(
     const LagBins& bins,
     SFMethod method = SFMethod::SecondOrder,
     const agnsf::io::ColumnNames& columns = {},
-    const UncertaintyConfig& config = {}
+    const UncertaintyConfig& config = {},
+    double redshift = 0.0
 );
 
 
@@ -38,13 +39,18 @@ SFResult pooled_sf_from_files(
     const LagBins& bins,
     SFMethod method = SFMethod::SecondOrder,
     const agnsf::io::ColumnNames& columns = {},
-    const UncertaintyConfig& config = {}
+    const UncertaintyConfig& config = {},
+    double redshift = 0.0
 );
 
 
 /**
  * Read a list of light-curve paths from a text file and calculate
  * the pooled ESF.
+ *
+ * Each line may carry an optional second column with the source
+ * redshift (see agnsf::io::read_path_list_with_redshift); per-curve
+ * redshifts are applied before computing.
  */
 SFResult pooled_sf_from_path_list(
     const std::string& path_list_file,
@@ -66,13 +72,17 @@ SFResult ensemble_sf_from_files(
     SFEnsembleCalculator::Method method =
         SFEnsembleCalculator::Method::SqrtMeanSquared,
     const agnsf::io::ColumnNames& columns = {},
-    const UncertaintyConfig& config = {}
+    const UncertaintyConfig& config = {},
+    double redshift = 0.0
 );
 
 
 /**
  * Read a list of light-curve paths from a text file and calculate
  * the aggregated ESF.
+ *
+ * Each line may carry an optional second column with the source
+ * redshift; per-curve redshifts are applied before computing.
  */
 SFResult ensemble_sf_from_path_list(
     const std::string& path_list_file,

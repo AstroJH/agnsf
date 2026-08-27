@@ -26,6 +26,43 @@ std::vector<agnsf::LightCurve> load_curves(
     return curves;
 }
 
+
+/**
+ * Light curves together with their per-source redshifts (metadata;
+ * the redshifts are passed to the calculators, never stored in the
+ * LightCurve objects).
+ */
+struct LoadedCurves {
+    std::vector<agnsf::LightCurve> curves;
+    std::vector<double> redshifts;
+};
+
+
+/**
+ * Load observed-frame light curves and keep their per-source
+ * redshifts. No rest-frame time arrays are created here.
+ */
+LoadedCurves load_curves_with_redshifts(
+    const std::vector<agnsf::io::PathEntry>& entries,
+    const agnsf::io::ColumnNames& columns
+)
+{
+    LoadedCurves result;
+
+    result.curves.reserve(entries.size());
+    result.redshifts.reserve(entries.size());
+
+    for (const auto& entry : entries) {
+        result.curves.emplace_back(
+            agnsf::io::read_light_curve(entry.path, columns)
+        );
+
+        result.redshifts.push_back(entry.redshift);
+    }
+
+    return result;
+}
+
 } // namespace
 
 
@@ -34,7 +71,8 @@ SFResult sf_from_file(
     const LagBins& bins,
     SFMethod method,
     const agnsf::io::ColumnNames& columns,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 )
 {
     const agnsf::LightCurve light_curve =
@@ -46,7 +84,8 @@ SFResult sf_from_file(
         light_curve,
         bins,
         method,
-        config
+        config,
+        redshift
     );
 }
 
@@ -56,7 +95,8 @@ SFResult pooled_sf_from_files(
     const LagBins& bins,
     SFMethod method,
     const agnsf::io::ColumnNames& columns,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 )
 {
     PooledESFCalculator calculator;
@@ -65,7 +105,8 @@ SFResult pooled_sf_from_files(
         load_curves(paths, columns),
         bins,
         method,
-        config
+        config,
+        redshift
     );
 }
 
@@ -78,12 +119,20 @@ SFResult pooled_sf_from_path_list(
     const UncertaintyConfig& config
 )
 {
-    return pooled_sf_from_files(
-        agnsf::io::read_path_list(path_list_file),
+    const LoadedCurves loaded =
+        load_curves_with_redshifts(
+            agnsf::io::read_path_list_with_redshift(path_list_file),
+            columns
+        );
+
+    PooledESFCalculator calculator;
+
+    return calculator.calculate(
+        loaded.curves,
         bins,
         method,
-        columns,
-        config
+        config,
+        loaded.redshifts
     );
 }
 
@@ -94,7 +143,8 @@ SFResult ensemble_sf_from_files(
     SFMethod sf_method,
     SFEnsembleCalculator::Method method,
     const agnsf::io::ColumnNames& columns,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 )
 {
     SFEnsembleCalculator calculator;
@@ -104,7 +154,8 @@ SFResult ensemble_sf_from_files(
         bins,
         sf_method,
         method,
-        config
+        config,
+        redshift
     );
 }
 
@@ -118,13 +169,21 @@ SFResult ensemble_sf_from_path_list(
     const UncertaintyConfig& config
 )
 {
-    return ensemble_sf_from_files(
-        agnsf::io::read_path_list(path_list_file),
+    const LoadedCurves loaded =
+        load_curves_with_redshifts(
+            agnsf::io::read_path_list_with_redshift(path_list_file),
+            columns
+        );
+
+    SFEnsembleCalculator calculator;
+
+    return calculator.calculate(
+        loaded.curves,
         bins,
         sf_method,
         method,
-        columns,
-        config
+        config,
+        loaded.redshifts
     );
 }
 

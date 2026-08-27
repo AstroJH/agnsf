@@ -12,29 +12,37 @@ namespace esf {
 /**
  * Structure function of a single light curve.
  *
- * The estimator (SFMethod) selects how SF^2 is formed from the
- * pair statistics in each lag bin. When the measurement uncertainty
- * is enabled (UncertaintyConfig::measurement == Analytic) each bin's
- * SFBinResult::measurement is filled from the within-bin standard
- * error of the mean propagated to sf.
+ * The estimator (SFMethod) determines how SF^2 is calculated from
+ * pair statistics in each lag bin.
  *
- * Sampling uncertainty is not defined for a single light curve and
- * is rejected by the config validation.
+ * Uncertainty estimation is controlled by UncertaintyConfig.
  */
 class SFCalculator {
 public:
+
+    /**
+     * Calculate the structure function of a single light curve.
+     *
+     * @param data      Input light curve.
+     * @param bins      Lag bins.
+     * @param method    Structure-function estimator.
+     * @param config    Uncertainty configuration.
+     * @param redshift  Source redshift used for rest-frame lag correction.
+     */
     SFResult calculate(
         const agnsf::LightCurve& data,
         const LagBins& bins,
         SFMethod method = SFMethod::SecondOrder,
-        const UncertaintyConfig& config = {}
+        const UncertaintyConfig& config = {},
+        double redshift = 0.0
     ) const;
 
     SFResult calculate(
         const agnsf::LightCurveView& data,
         const LagBins& bins,
         SFMethod method = SFMethod::SecondOrder,
-        const UncertaintyConfig& config = {}
+        const UncertaintyConfig& config = {},
+        double redshift = 0.0
     ) const;
 };
 

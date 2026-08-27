@@ -182,10 +182,26 @@ SFResult calculate_pooled(
     const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
     SFMethod method,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift,
+    const std::vector<double>* redshifts  // nullptr => scalar redshift
 )
 {
     validate_config(config);
+
+    if (redshifts != nullptr &&
+        redshifts->size() != data.size()) {
+
+        throw std::invalid_argument(
+            "redshifts size must match the number of light curves"
+        );
+    }
+
+    if (redshift <= -1.0) {
+        throw std::invalid_argument(
+            "redshift must be > -1"
+        );
+    }
 
     const bool want_sampling =
         config.sampling == UncertaintyMethod::Jackknife ||
@@ -259,6 +275,8 @@ SFResult calculate_pooled(
              &local_accumulators,
              &curve_stats,
              want_sampling,
+             redshift,
+             redshifts,
              worker_id]()
             {
                 /*
@@ -281,10 +299,17 @@ SFResult calculate_pooled(
                         break;
                     }
 
+                    // Per-curve redshift when a vector was supplied.
+                    const double curve_redshift =
+                        redshifts != nullptr
+                            ? (*redshifts)[index]
+                            : redshift;
+
                     const auto result =
                         accumulate_light_curve(
                             data[index],
-                            bins
+                            bins,
+                            curve_redshift
                         );
 
                     if (want_sampling) {
@@ -379,13 +404,12 @@ SFResult PooledESFCalculator::calculate(
     const std::vector<agnsf::LightCurve>& data,
     const LagBins& bins,
     SFMethod method,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 ) const
 {
     /*
      * Convert owning light curves into non-owning views.
-     *
-     * No time/value/error data are copied.
      */
     std::vector<agnsf::LightCurveView> views;
     views.reserve(data.size());
@@ -398,7 +422,9 @@ SFResult PooledESFCalculator::calculate(
         views,
         bins,
         method,
-        config
+        config,
+        redshift,
+        nullptr
     );
 }
 
@@ -407,14 +433,62 @@ SFResult PooledESFCalculator::calculate(
     const std::vector<agnsf::LightCurveView>& data,
     const LagBins& bins,
     SFMethod method,
-    const UncertaintyConfig& config
+    const UncertaintyConfig& config,
+    double redshift
 ) const
 {
     return calculate_pooled(
         data,
         bins,
         method,
-        config
+        config,
+        redshift,
+        nullptr
+    );
+}
+
+
+SFResult PooledESFCalculator::calculate(
+    const std::vector<agnsf::LightCurve>& data,
+    const LagBins& bins,
+    SFMethod method,
+    const UncertaintyConfig& config,
+    const std::vector<double>& redshifts
+) const
+{
+    std::vector<agnsf::LightCurveView> views;
+    views.reserve(data.size());
+
+    for (const auto& light_curve : data) {
+        views.push_back(light_curve.view());
+    }
+
+    return calculate_pooled(
+        views,
+        bins,
+        method,
+        config,
+        0.0,
+        &redshifts
+    );
+}
+
+
+SFResult PooledESFCalculator::calculate(
+    const std::vector<agnsf::LightCurveView>& data,
+    const LagBins& bins,
+    SFMethod method,
+    const UncertaintyConfig& config,
+    const std::vector<double>& redshifts
+) const
+{
+    return calculate_pooled(
+        data,
+        bins,
+        method,
+        config,
+        0.0,
+        &redshifts
     );
 }
 

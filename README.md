@@ -187,6 +187,21 @@ averaged); use `Jackknife` or `Bootstrap` there.
 A single light curve never estimates sampling uncertainty (`sampling` stays
 NaN), and measurement/sampling are kept as separate fields by design.
 
+## Rest-frame lags
+
+All Python computation and file functions accept a `redshift` keyword.
+When given, observed times are divided by `1 + z`, so lag bins are
+interpreted in the source rest frame:
+
+```python
+r = agnsf.sf(time, value, error, bins, redshift=0.5)  # dt_rest = dt_obs / (1+z)
+```
+
+The redshift is applied inside the native kernels (i.e., C++ lib; per pair, without
+copying the time arrays), and is also available in the CLI
+(`--redshift <z>`) and in path-list files (per-curve, optional second
+column; a missing column means `z = 0`).
+
 ## Command-line Interface (CLI)
 
 The AGNSF command-line program computes the structure function of a
@@ -207,13 +222,19 @@ agnsf -i @list.txt -o esf.txt \
 ```
 
 When the input path is prefixed with `@`, the file is interpreted as a
-path-list file containing one light-curve file path per line. For example:
+path-list file containing one light-curve file path per line. Each
+line may optionally carry a second column with the source redshift
+(per-curve rest-frame correction):
 
 ```
 data/lc1.csv
-data/lc2.csv
+data/lc2.csv 0.5
 data/lc3.fits
 ```
+
+For single light-curve input, pass `--redshift <z>` for a global
+rest-frame correction.
+
 
 For all available options, SF/ESF methods, bin specifications, column
 settings, uncertainty estimation, and output format, see:

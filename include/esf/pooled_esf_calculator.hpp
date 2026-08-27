@@ -44,14 +44,33 @@ public:
         const std::vector<agnsf::LightCurve>& data,
         const LagBins& bins,
         SFMethod method = SFMethod::SecondOrder,
-        const UncertaintyConfig& config = {}
+        const UncertaintyConfig& config = {},
+        double redshift = 0.0
     ) const;
 
     SFResult calculate(
         const std::vector<agnsf::LightCurveView>& data,
         const LagBins& bins,
         SFMethod method = SFMethod::SecondOrder,
-        const UncertaintyConfig& config = {}
+        const UncertaintyConfig& config = {},
+        double redshift = 0.0
+    ) const;
+
+    // Per-curve redshifts: one value per light curve.
+    SFResult calculate(
+        const std::vector<agnsf::LightCurve>& data,
+        const LagBins& bins,
+        SFMethod method,
+        const UncertaintyConfig& config,
+        const std::vector<double>& redshifts
+    ) const;
+
+    SFResult calculate(
+        const std::vector<agnsf::LightCurveView>& data,
+        const LagBins& bins,
+        SFMethod method,
+        const UncertaintyConfig& config,
+        const std::vector<double>& redshifts
     ) const;
 };
 
