@@ -450,11 +450,11 @@ add_test(
 # Command-line interface
 # ----------------------------------------------------------------------
 
-# add_executable(agnsf
-#     src/cli/main.cpp
-# )
+add_executable(agnsf
+    src/cli/main.cpp
+)
 
-# target_link_libraries(agnsf
-#     PRIVATE
-#         agnsf_esf
-# )
+target_link_libraries(agnsf
+    PRIVATE
+        agnsf_esf
+)

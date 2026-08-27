@@ -158,7 +158,7 @@ Sampling uncertainty exploits the independence of different light curves:
   $$\mathrm{SE} =
   \frac{\mathrm{std}(x_1,\ldots,x_n)}{\sqrt{n}}
   $$
-  
+
   where $x_i$ are the per-curve quantities used by the aggregation.
 
 - `Jackknife`: leave-one-curve-out recomputation of the ESF.
@@ -170,3 +170,39 @@ averaged); use `Jackknife` or `Bootstrap` there.
 
 A single light curve never estimates sampling uncertainty (`sampling` stays
 NaN), and measurement/sampling are kept as separate fields by design.
+
+## Command-line interface
+
+The AGNSF command-line program computes the structure function of a
+single light curve or the ensemble structure function of multiple
+light curves.
+
+```sh
+# SF of one light curve
+agnsf --input lc.csv --output sf.txt
+
+# Pooled ESF from a path-list file
+agnsf --input @list.txt --output esf.txt
+
+# Aggregated ESF with bootstrap sampling uncertainty
+agnsf -i @list.txt -o esf.txt \
+      --esf aggregated \
+      --sampling bootstrap --n-bootstrap 500 --bootstrap-seed 42
+```
+
+When the input path is prefixed with `@`, the file is interpreted as a
+path-list file containing one light-curve file path per line. For example:
+
+```
+data/lc1.csv
+data/lc2.csv
+data/lc3.fits
+```
+
+For all available options, SF/ESF methods, bin specifications, column
+settings, uncertainty estimation, and output format, see:
+
+```sh
+agnsf --help
+```
+
