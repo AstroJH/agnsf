@@ -50,7 +50,11 @@ __all__ = [
 import numpy as np
 
 
-def to_numpy(result: SFBinResult, bins: LagBins):
+def to_numpy(
+    result: SFBinResult,
+    bins: LagBins,
+    uncertainty: bool = False,
+):
     lag = np.array([
         np.mean(bins[i])
         for i in range(len(bins))
@@ -71,4 +75,37 @@ def to_numpy(result: SFBinResult, bins: LagBins):
         & np.isfinite(sf)
     )
 
-    return lag, sf, count, valid
+    if not uncertainty:
+        return lag, sf, count, valid
+
+    measurement_lower = np.array([
+        result[i].measurement.lower
+        for i in range(len(result))
+    ])
+
+    measurement_upper = np.array([
+        result[i].measurement.upper
+        for i in range(len(result))
+    ])
+
+    sampling_lower = np.array([
+        result[i].sampling.lower
+        for i in range(len(result))
+    ])
+
+    sampling_upper = np.array([
+        result[i].sampling.upper
+        for i in range(len(result))
+    ])
+
+    return (
+        lag,
+        sf,
+        count,
+        valid,
+        measurement_lower,
+        measurement_upper,
+        sampling_lower,
+        sampling_upper,
+    )
+
