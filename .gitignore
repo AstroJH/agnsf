@@ -41,7 +41,7 @@ CLAUDE.md
 .cursor/
 
 # Examples
-examples/
+# examples/
 
 # Data
 *.fits

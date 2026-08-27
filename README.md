@@ -5,7 +5,7 @@
 > 🚧 **Work in progress.**  
 > The project is currently under active development and is not yet ready for general use.
 
-## Planned features
+## Planned Features
 
 - [x] Structure function (SF) calculation
 
@@ -24,6 +24,22 @@
   light-curve files and writing results to FITS or CSV
 
 - [x] Python interface supporting both in-memory light curves and file paths
+
+## Installation and Build
+### Build CLI
+
+```sh
+cmake -S . -B build
+cmake --build build -j
+```
+
+### Install with pip
+
+```sh
+python -m pip install https://github.com/AstroJH/agnsf.git
+```
+
+This installs both the Python bindings and the AGNSF CLI.
 
 ## Structure Function Estimators
 
@@ -81,7 +97,7 @@ AGNSF supports two approaches for calculating ensemble structure functions:
 
   Each contributing light curve is weighted equally within each lag bin. Only light curves with a finite contribution are included in each bin (a finite SF² for the root-mean-square method, a finite SF for the mean method).
 
-## Uncertainty estimation
+## Uncertainty Estimation
 
 AGNSF can estimate uncertainties on the structure function for every lag
 bin. Uncertainty is reported as an **asymmetric interval** `[lower, upper]`
@@ -171,7 +187,7 @@ averaged); use `Jackknife` or `Bootstrap` there.
 A single light curve never estimates sampling uncertainty (`sampling` stays
 NaN), and measurement/sampling are kept as separate fields by design.
 
-## Command-line interface
+## Command-line Interface (CLI)
 
 The AGNSF command-line program computes the structure function of a
 single light curve or the ensemble structure function of multiple
