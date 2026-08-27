@@ -130,14 +130,16 @@ mean** of the per-pair quantities to SF:
   $$\mathrm{SE}=
   \frac{\mathrm{std}(\Delta^2 - \mathrm{noise})}{\sqrt{N}}
   $$
+
   or, for the no-noise variants,
+
   $$\mathrm{SE}=
   \frac{\mathrm{std}(\Delta^2)}{\sqrt{N}}.
   $$
 
 - Mean-absolute-deviation estimators: the standard error of
   $\langle|\Delta|\rangle$ is propagated through
-  $$ f(x) = \frac{\pi}{2}x^2 $$
+  $f(x) = \frac{\pi}{2}x^2$
   using the delta method.
 
 For ESF, per-curve measurement uncertainties are combined in quadrature
@@ -153,10 +155,10 @@ Sampling uncertainty exploits the independence of different light curves:
 
 - `Analytic` (aggregated ESF, default):
 
-  $$
-  \mathrm{SE} =
+  $$\mathrm{SE} =
   \frac{\mathrm{std}(x_1,\ldots,x_n)}{\sqrt{n}}
   $$
+  
   where $x_i$ are the per-curve quantities used by the aggregation.
 
 - `Jackknife`: leave-one-curve-out recomputation of the ESF.
