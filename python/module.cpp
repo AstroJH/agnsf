@@ -16,7 +16,7 @@
 #include <esf/sf_result.hpp>
 #include <esf/sf_ensemble_calculator.hpp>
 #include <esf/sf_io.hpp>
-#include <esf/sf_uncertainty.hpp>
+#include <core/uncertainty.hpp>
 
 #include <io/light_curve.hpp>
 #include <io/path_list.hpp>
@@ -183,28 +183,28 @@ PYBIND11_MODULE(_agnsf, m)
 
 
     // ------------------------------------------------------------------
-    // SFUncertainty
+    // Uncertainty
     // ------------------------------------------------------------------
 
-    py::class_<agnsf::esf::SFUncertainty>(m, "SFUncertainty")
+    py::class_<agnsf::Uncertainty>(m, "Uncertainty")
         .def_readonly(
             "lower",
-            &agnsf::esf::SFUncertainty::lower
+            &agnsf::Uncertainty::lower
         )
         .def_readonly(
             "upper",
-            &agnsf::esf::SFUncertainty::upper
+            &agnsf::Uncertainty::upper
         )
         .def_property_readonly(
             "estimated",
-            &agnsf::esf::SFUncertainty::estimated
+            &agnsf::Uncertainty::estimated
         )
         .def(
             "__repr__",
-            [](const agnsf::esf::SFUncertainty& uncertainty)
+            [](const agnsf::Uncertainty& uncertainty)
             {
                 std::ostringstream out;
-                out << "SFUncertainty(lower="
+                out << "Uncertainty(lower="
                     << uncertainty.lower
                     << ", upper="
                     << uncertainty.upper
@@ -218,29 +218,29 @@ PYBIND11_MODULE(_agnsf, m)
     // UncertaintyMethod
     // ------------------------------------------------------------------
 
-    py::enum_<agnsf::esf::UncertaintyMethod>(
+    py::enum_<agnsf::UncertaintyMethod>(
         m,
         "UncertaintyMethod"
     )
         .value(
             "Off",
-            agnsf::esf::UncertaintyMethod::Off
+            agnsf::UncertaintyMethod::Off
         )
         .value(
             "Analytic",
-            agnsf::esf::UncertaintyMethod::Analytic
+            agnsf::UncertaintyMethod::Analytic
         )
         .value(
             "MonteCarlo",
-            agnsf::esf::UncertaintyMethod::MonteCarlo
+            agnsf::UncertaintyMethod::MonteCarlo
         )
         .value(
             "Jackknife",
-            agnsf::esf::UncertaintyMethod::Jackknife
+            agnsf::UncertaintyMethod::Jackknife
         )
         .value(
             "Bootstrap",
-            agnsf::esf::UncertaintyMethod::Bootstrap
+            agnsf::UncertaintyMethod::Bootstrap
         );
 
 
@@ -248,21 +248,21 @@ PYBIND11_MODULE(_agnsf, m)
     // UncertaintyConfig
     // ------------------------------------------------------------------
 
-    py::class_<agnsf::esf::UncertaintyConfig>(
+    py::class_<agnsf::UncertaintyConfig>(
         m,
         "UncertaintyConfig"
     )
         .def(
             py::init(
                 [](
-                    agnsf::esf::UncertaintyMethod measurement,
-                    agnsf::esf::UncertaintyMethod within,
-                    agnsf::esf::UncertaintyMethod sampling,
+                    agnsf::UncertaintyMethod measurement,
+                    agnsf::UncertaintyMethod within,
+                    agnsf::UncertaintyMethod sampling,
                     std::size_t n_bootstrap,
                     std::uint32_t bootstrap_seed
                 )
                 {
-                    agnsf::esf::UncertaintyConfig config;
+                    agnsf::UncertaintyConfig config;
 
                     config.measurement = measurement;
                     config.within = within;
@@ -274,11 +274,11 @@ PYBIND11_MODULE(_agnsf, m)
                 }
             ),
             py::arg("measurement") =
-                agnsf::esf::UncertaintyMethod::Off,
+                agnsf::UncertaintyMethod::Off,
             py::arg("within") =
-                agnsf::esf::UncertaintyMethod::Off,
+                agnsf::UncertaintyMethod::Off,
             py::arg("sampling") =
-                agnsf::esf::UncertaintyMethod::Off,
+                agnsf::UncertaintyMethod::Off,
             py::arg("n_bootstrap") =
                 std::size_t{100},
             py::arg("bootstrap_seed") =
@@ -286,41 +286,41 @@ PYBIND11_MODULE(_agnsf, m)
         )
         .def_readwrite(
             "measurement",
-            &agnsf::esf::UncertaintyConfig::measurement
+            &agnsf::UncertaintyConfig::measurement
         )
         .def_readwrite(
             "within",
-            &agnsf::esf::UncertaintyConfig::within
+            &agnsf::UncertaintyConfig::within
         )
         .def_readwrite(
             "sampling",
-            &agnsf::esf::UncertaintyConfig::sampling
+            &agnsf::UncertaintyConfig::sampling
         )
         .def_readwrite(
             "n_bootstrap",
-            &agnsf::esf::UncertaintyConfig::n_bootstrap
+            &agnsf::UncertaintyConfig::n_bootstrap
         )
         .def_readwrite(
             "bootstrap_seed",
-            &agnsf::esf::UncertaintyConfig::bootstrap_seed
+            &agnsf::UncertaintyConfig::bootstrap_seed
         )
         .def(
             "__repr__",
-            [](const agnsf::esf::UncertaintyConfig& config)
+            [](const agnsf::UncertaintyConfig& config)
             {
                 const auto name =
-                    [](agnsf::esf::UncertaintyMethod method)
+                    [](agnsf::UncertaintyMethod method)
                     {
                         switch (method) {
-                            case agnsf::esf::UncertaintyMethod::Off:
+                            case agnsf::UncertaintyMethod::Off:
                                 return "Off";
-                            case agnsf::esf::UncertaintyMethod::Analytic:
+                            case agnsf::UncertaintyMethod::Analytic:
                                 return "Analytic";
-                            case agnsf::esf::UncertaintyMethod::MonteCarlo:
+                            case agnsf::UncertaintyMethod::MonteCarlo:
                                 return "MonteCarlo";
-                            case agnsf::esf::UncertaintyMethod::Jackknife:
+                            case agnsf::UncertaintyMethod::Jackknife:
                                 return "Jackknife";
-                            case agnsf::esf::UncertaintyMethod::Bootstrap:
+                            case agnsf::UncertaintyMethod::Bootstrap:
                                 return "Bootstrap";
                         }
                         return "?";
@@ -619,7 +619,7 @@ PYBIND11_MODULE(_agnsf, m)
             const Float64Array& error,
             const agnsf::esf::LagBins& bins,
             agnsf::esf::SFMethod method,
-            const agnsf::esf::UncertaintyConfig& uncertainty,
+            const agnsf::UncertaintyConfig& uncertainty,
             double redshift
         )
         {
@@ -647,7 +647,7 @@ PYBIND11_MODULE(_agnsf, m)
         py::arg("method") =
             agnsf::esf::SFMethod::SecondOrder,
         py::arg("uncertainty") =
-            agnsf::esf::UncertaintyConfig(),
+            agnsf::UncertaintyConfig(),
         py::arg("redshift") = 0.0,
         R"pbdoc(
 Calculate the structure function of a single light curve.
@@ -681,7 +681,7 @@ redshift: source redshift z; lags are converted to the rest frame
             const py::list& errors,
             const agnsf::esf::LagBins& bins,
             agnsf::esf::SFMethod method,
-            const agnsf::esf::UncertaintyConfig& uncertainty,
+            const agnsf::UncertaintyConfig& uncertainty,
             const py::object& redshift
         )
         {
@@ -726,7 +726,7 @@ redshift: source redshift z; lags are converted to the rest frame
         py::arg("method") =
             agnsf::esf::SFMethod::SecondOrder,
         py::arg("uncertainty") =
-            agnsf::esf::UncertaintyConfig(),
+            agnsf::UncertaintyConfig(),
         py::arg("redshift") = 0.0,
         R"pbdoc(
 Calculate the pooled ensemble structure function.
@@ -786,7 +786,7 @@ redshift: source redshift z — a scalar applies the same z to all
             const agnsf::esf::LagBins& bins,
             agnsf::esf::SFEnsembleCalculator::Method method,
             agnsf::esf::SFMethod sf_method,
-            const agnsf::esf::UncertaintyConfig& uncertainty,
+            const agnsf::UncertaintyConfig& uncertainty,
             const py::object& redshift
         )
         {
@@ -835,7 +835,7 @@ redshift: source redshift z — a scalar applies the same z to all
         py::arg("sf_method") =
             agnsf::esf::SFMethod::SecondOrder,
         py::arg("uncertainty") =
-            agnsf::esf::UncertaintyConfig(),
+            agnsf::UncertaintyConfig(),
         py::arg("redshift") = 0.0,
         R"pbdoc(
 Calculate the aggregated ensemble structure function.
@@ -988,7 +988,7 @@ line with space-separated values.
             const std::string& time,
             const std::string& value,
             const std::string& error,
-            const agnsf::esf::UncertaintyConfig& uncertainty,
+            const agnsf::UncertaintyConfig& uncertainty,
             double redshift
         )
         {
@@ -1014,7 +1014,7 @@ line with space-separated values.
         py::arg("value") = "value",
         py::arg("error") = "error",
         py::arg("uncertainty") =
-            agnsf::esf::UncertaintyConfig(),
+            agnsf::UncertaintyConfig(),
         py::arg("redshift") = 0.0,
         R"pbdoc(
 Calculate the structure function of one light-curve file (CSV or FITS).
@@ -1036,7 +1036,7 @@ redshift: source redshift z (rest-frame lags)
             const std::string& time,
             const std::string& value,
             const std::string& error,
-            const agnsf::esf::UncertaintyConfig& uncertainty,
+            const agnsf::UncertaintyConfig& uncertainty,
             double redshift
         )
         {
@@ -1071,7 +1071,7 @@ redshift: source redshift z (rest-frame lags)
         py::arg("value") = "value",
         py::arg("error") = "error",
         py::arg("uncertainty") =
-            agnsf::esf::UncertaintyConfig(),
+            agnsf::UncertaintyConfig(),
         py::arg("redshift") = 0.0,
         R"pbdoc(
 Calculate the pooled ensemble structure function from a list of
@@ -1088,7 +1088,7 @@ light-curve files (CSV or FITS).
             const std::string& time,
             const std::string& value,
             const std::string& error,
-            const agnsf::esf::UncertaintyConfig& uncertainty
+            const agnsf::UncertaintyConfig& uncertainty
         )
         {
             agnsf::io::ColumnNames columns;
@@ -1112,7 +1112,7 @@ light-curve files (CSV or FITS).
         py::arg("value") = "value",
         py::arg("error") = "error",
         py::arg("uncertainty") =
-            agnsf::esf::UncertaintyConfig(),
+            agnsf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the pooled ensemble structure function from a text file that
 lists the light-curve paths (one per line).
@@ -1129,7 +1129,7 @@ lists the light-curve paths (one per line).
             const std::string& time,
             const std::string& value,
             const std::string& error,
-            const agnsf::esf::UncertaintyConfig& uncertainty,
+            const agnsf::UncertaintyConfig& uncertainty,
             double redshift
         )
         {
@@ -1167,7 +1167,7 @@ lists the light-curve paths (one per line).
         py::arg("value") = "value",
         py::arg("error") = "error",
         py::arg("uncertainty") =
-            agnsf::esf::UncertaintyConfig(),
+            agnsf::UncertaintyConfig(),
         py::arg("redshift") = 0.0,
         R"pbdoc(
 Calculate the aggregated ensemble structure function from a list of
@@ -1190,7 +1190,7 @@ redshift: source redshift z applied to all light curves
             const std::string& time,
             const std::string& value,
             const std::string& error,
-            const agnsf::esf::UncertaintyConfig& uncertainty
+            const agnsf::UncertaintyConfig& uncertainty
         )
         {
             agnsf::io::ColumnNames columns;
@@ -1217,7 +1217,7 @@ redshift: source redshift z applied to all light curves
         py::arg("value") = "value",
         py::arg("error") = "error",
         py::arg("uncertainty") =
-            agnsf::esf::UncertaintyConfig(),
+            agnsf::UncertaintyConfig(),
         R"pbdoc(
 Calculate the aggregated ensemble structure function from a text file
 that lists the light-curve paths (one per line).

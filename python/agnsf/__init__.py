@@ -5,7 +5,7 @@ from ._agnsf import (
     SFBinResult,
     SFMethod,
     SFResult,
-    SFUncertainty,
+    Uncertainty,
     UncertaintyConfig,
     UncertaintyMethod,
 )
@@ -29,7 +29,7 @@ __all__ = [
     "SFBinResult",
     "SFMethod",
     "SFResult",
-    "SFUncertainty",
+    "Uncertainty",
     "UncertaintyConfig",
     "UncertaintyMethod",
 

@@ -36,7 +36,7 @@
 #include <esf/sf_ensemble_calculator.hpp>
 #include <esf/sf_method.hpp>
 #include <esf/sf_result.hpp>
-#include <esf/sf_uncertainty.hpp>
+#include <core/uncertainty.hpp>
 #include <io/light_curve.hpp>
 #include <io/path_list.hpp>
 #include <io/table_writer.hpp>
@@ -49,8 +49,8 @@ using agnsf::esf::LagBins;
 using agnsf::esf::SFEnsembleCalculator;
 using agnsf::esf::SFMethod;
 using agnsf::esf::SFResult;
-using agnsf::esf::UncertaintyConfig;
-using agnsf::esf::UncertaintyMethod;
+using agnsf::UncertaintyConfig;
+using agnsf::UncertaintyMethod;
 
 // --------------------------------------------------------------------------
 // Small helpers

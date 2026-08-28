@@ -4,7 +4,7 @@
 
 #include <esf/bin_accumulator.hpp>
 #include <esf/sf_method.hpp>
-#include <esf/sf_uncertainty.hpp>
+#include <core/uncertainty.hpp>
 
 namespace agnsf {
 namespace esf {
@@ -35,7 +35,7 @@ public:
      * Returns an unestimated (NaN) interval when sf is not finite
      * (e.g. noise-dominated bins with negative SF^2).
      */
-    virtual SFUncertainty estimate(
+    virtual Uncertainty estimate(
         const BinAccumulator& stats
     ) const = 0;
 };
@@ -57,7 +57,7 @@ class SFWithinUncertaintyEstimator {
 public:
     virtual ~SFWithinUncertaintyEstimator() = default;
 
-    virtual SFUncertainty estimate(
+    virtual Uncertainty estimate(
         const BinAccumulator& stats
     ) const = 0;
 };

@@ -4,7 +4,7 @@
 #include <limits>
 #include <vector>
 
-#include <esf/sf_uncertainty.hpp>
+#include <core/uncertainty.hpp>
 
 namespace agnsf {
 namespace esf {
@@ -25,18 +25,18 @@ struct SFBinResult {
     //
     // Uncertainty propagated from the measurement errors sigma_i 
     // (closed-form propagation or observation-level Monte Carlo).
-    SFUncertainty measurement;
+    Uncertainty measurement;
 
     // Naive within-bin statistical uncertainty (NaN when not
     // estimated): standard error of the per-pair mean under the
     // pair-independence approximation (s_X / sqrt(N_pair)).
-    SFUncertainty within;
+    Uncertainty within;
 
     // Source-to-source sampling uncertainty on ESF.
     //
     // Single light curves never estimate sampling uncertainty; this
     // stays NaN by design.
-    SFUncertainty sampling;
+    Uncertainty sampling;
 };
 
 

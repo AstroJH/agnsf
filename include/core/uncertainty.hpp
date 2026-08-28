@@ -5,7 +5,6 @@
 #include <limits>
 
 namespace agnsf {
-namespace esf {
 
 /**
  * Uncertainty interval attached to the structure function value `sf`.
@@ -18,7 +17,7 @@ namespace esf {
  * lower == upper (i.e. sf +/- sigma). Asymmetric intervals are
  * supported directly.
  */
-struct SFUncertainty {
+struct Uncertainty {
     double lower =
         std::numeric_limits<double>::quiet_NaN();
 
@@ -104,5 +103,4 @@ struct UncertaintyConfig {
     std::uint32_t bootstrap_seed = 0;
 };
 
-} // namespace esf
 } // namespace agnsf

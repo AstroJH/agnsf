@@ -21,7 +21,7 @@ class UncertaintyMethod:
     Bootstrap: UncertaintyMethod
 
 
-class SFUncertainty:
+class Uncertainty:
     lower: float
     upper: float
 
@@ -50,9 +50,9 @@ class SFBinResult:
     count: int
     sf_squared: float
     sf: float
-    measurement: SFUncertainty
-    within: SFUncertainty
-    sampling: SFUncertainty
+    measurement: Uncertainty
+    within: Uncertainty
+    sampling: Uncertainty
 
 
 class SFResult:

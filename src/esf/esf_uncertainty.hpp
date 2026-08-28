@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <vector>
 
-#include <esf/sf_uncertainty.hpp>
+#include <core/uncertainty.hpp>
 
 namespace agnsf {
 namespace esf {
@@ -19,7 +19,7 @@ namespace detail {
  *
  * Returns an unestimated interval when n < 2.
  */
-SFUncertainty analytic_interval(
+Uncertainty analytic_interval(
     const std::vector<double>& values
 );
 
@@ -39,7 +39,7 @@ SFUncertainty analytic_interval(
  *
  * Returns an unestimated interval when n < 2.
  */
-SFUncertainty jackknife_interval(
+Uncertainty jackknife_interval(
     const std::vector<double>& values,
     bool sqrt_mean
 );
@@ -57,7 +57,7 @@ SFUncertainty jackknife_interval(
  * Returns an unestimated interval when n < 2 or when fewer than two
  * resampled statistics are finite.
  */
-SFUncertainty bootstrap_interval(
+Uncertainty bootstrap_interval(
     const std::vector<double>& values,
     std::size_t n_bootstrap,
     std::uint32_t seed,
@@ -70,7 +70,7 @@ SFUncertainty bootstrap_interval(
  * (nearest-rank). Returns an unestimated interval when fewer than two
  * finite values are available.
  */
-SFUncertainty percentile_interval(
+Uncertainty percentile_interval(
     const std::vector<double>& values,
     double p_lo,
     double p_hi
@@ -84,8 +84,8 @@ SFUncertainty percentile_interval(
  * sf = sqrt(working) with the lower bound clamped at 0; otherwise the
  * interval is returned unchanged.
  */
-SFUncertainty map_interval_to_sf(
-    const SFUncertainty& interval,
+Uncertainty map_interval_to_sf(
+    const Uncertainty& interval,
     bool sqrt_transform
 );
 

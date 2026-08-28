@@ -151,7 +151,7 @@ void validate_config(
  * and map the resulting interval on the working scale (SF or SF^2)
  * onto sf.
  */
-std::vector<SFUncertainty> combine_working_intervals(
+std::vector<Uncertainty> combine_working_intervals(
     const std::vector<double>& sum2,
     const std::vector<std::size_t>& count,
     const std::vector<SFBinResult>& results,
@@ -161,7 +161,7 @@ std::vector<SFUncertainty> combine_working_intervals(
     const bool sqrt_transform =
         uses_squared_scale(method);
 
-    std::vector<SFUncertainty> intervals(
+    std::vector<Uncertainty> intervals(
         results.size()
     );
 
@@ -184,7 +184,7 @@ std::vector<SFUncertainty> combine_working_intervals(
                 ? results[j].sf_squared
                 : results[j].sf;
 
-        SFUncertainty working;
+        Uncertainty working;
         working.lower = working_mean - sigma;
         working.upper = working_mean + sigma;
 
@@ -217,7 +217,7 @@ void fill_measurement(
     SFEnsembleCalculator::Method method
 )
 {
-    const std::vector<SFUncertainty> intervals =
+    const std::vector<Uncertainty> intervals =
         combine_working_intervals(
             meas2,
             meas_count,
@@ -238,7 +238,7 @@ void fill_within(
     SFEnsembleCalculator::Method method
 )
 {
-    const std::vector<SFUncertainty> intervals =
+    const std::vector<Uncertainty> intervals =
         combine_working_intervals(
             within2,
             within_count,
@@ -281,7 +281,7 @@ void fill_sampling(
             continue;
         }
 
-        SFUncertainty interval;
+        Uncertainty interval;
 
         switch (config.sampling) {
 
@@ -604,7 +604,7 @@ SFResult calculate_ensemble(
 
                         if (want_measurement) {
 
-                            const SFUncertainty& interval =
+                            const Uncertainty& interval =
                                 result.bin(j).measurement;
 
                             if (interval.estimated()) {
@@ -634,7 +634,7 @@ SFResult calculate_ensemble(
 
                         if (want_within) {
 
-                            const SFUncertainty& interval =
+                            const Uncertainty& interval =
                                 result.bin(j).within;
 
                             if (interval.estimated()) {

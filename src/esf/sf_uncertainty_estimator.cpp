@@ -21,13 +21,13 @@ constexpr double kPi = 3.14159265358979323846;
  * Valid only when sf > 0; diverges as sf -> 0, so unestimated (NaN)
  * intervals are returned for non-positive sf.
  */
-SFUncertainty delta_to_sf(
+Uncertainty delta_to_sf(
     double sf2,
     double sf,
     double sigma_sf2
 )
 {
-    SFUncertainty result;
+    Uncertainty result;
 
     if (!std::isfinite(sf2) || sf2 <= 0.0 ||
         !std::isfinite(sf) || sf <= 0.0 ||
@@ -51,12 +51,12 @@ SFUncertainty delta_to_sf(
  * asymmetric interval on sf and is used for the naive within-bin
  * statistical uncertainty.
  */
-SFUncertainty sqrt_interval(
+Uncertainty sqrt_interval(
     double sf2,
     double delta_sf2
 )
 {
-    SFUncertainty result;
+    Uncertainty result;
 
     if (!std::isfinite(sf2) || sf2 < 0.0 ||
         !std::isfinite(delta_sf2)) {
@@ -135,14 +135,14 @@ public:
     {
     }
 
-    SFUncertainty estimate(
+    Uncertainty estimate(
         const BinAccumulator& stats
     ) const override
     {
         const std::size_t n = stats.count();
 
         if (n == 0) {
-            return SFUncertainty{};
+            return Uncertainty{};
         }
 
         const double count = static_cast<double>(n);
@@ -214,14 +214,14 @@ public:
     {
     }
 
-    SFUncertainty estimate(
+    Uncertainty estimate(
         const BinAccumulator& stats
     ) const override
     {
         const std::size_t n = stats.count();
 
         if (n == 0) {
-            return SFUncertainty{};
+            return Uncertainty{};
         }
 
         const double count = static_cast<double>(n);
@@ -273,14 +273,14 @@ public:
     {
     }
 
-    SFUncertainty estimate(
+    Uncertainty estimate(
         const BinAccumulator& stats
     ) const override
     {
         const std::size_t n = stats.count();
 
         if (n < 2) {
-            return SFUncertainty{};
+            return Uncertainty{};
         }
 
         const double count = static_cast<double>(n);
@@ -339,14 +339,14 @@ public:
     {
     }
 
-    SFUncertainty estimate(
+    Uncertainty estimate(
         const BinAccumulator& stats
     ) const override
     {
         const std::size_t n = stats.count();
 
         if (n < 2) {
-            return SFUncertainty{};
+            return Uncertainty{};
         }
 
         const double count = static_cast<double>(n);

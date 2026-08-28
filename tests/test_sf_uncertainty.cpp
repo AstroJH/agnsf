@@ -5,7 +5,7 @@
 
 #include <core/light_curve.hpp>
 #include <esf/sf_calculator.hpp>
-#include <esf/sf_uncertainty.hpp>
+#include <core/uncertainty.hpp>
 
 namespace {
 
@@ -77,8 +77,8 @@ void test_measurement_second_order()
      */
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.measurement = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig config;
+    config.measurement = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFCalculator calculator;
 
@@ -122,8 +122,8 @@ void test_measurement_mean_absolute_deviation()
      */
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.measurement = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig config;
+    config.measurement = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFCalculator calculator;
 
@@ -157,8 +157,8 @@ void test_measurement_monte_carlo()
 {
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.measurement = agnsf::esf::UncertaintyMethod::MonteCarlo;
+    agnsf::UncertaintyConfig config;
+    config.measurement = agnsf::UncertaintyMethod::MonteCarlo;
     config.n_bootstrap = 500;
     config.bootstrap_seed = 42;
 
@@ -213,8 +213,8 @@ void test_within_second_order()
      */
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.within = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig config;
+    config.within = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFCalculator calculator;
 
@@ -255,8 +255,8 @@ void test_within_mean_absolute_deviation()
 {
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.within = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig config;
+    config.within = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFCalculator calculator;
 
@@ -305,8 +305,8 @@ void test_noise_dominated_unestimated()
 
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.measurement = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig config;
+    config.measurement = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFCalculator calculator;
 
@@ -330,7 +330,7 @@ void test_invalid_config()
     agnsf::esf::SFCalculator calculator;
 
     const auto expect_throw =
-        [&](const agnsf::esf::UncertaintyConfig& config)
+        [&](const agnsf::UncertaintyConfig& config)
         {
             bool thrown = false;
 
@@ -351,22 +351,22 @@ void test_invalid_config()
 
     // measurement does not support Jackknife / Bootstrap.
     {
-        agnsf::esf::UncertaintyConfig config;
-        config.measurement = agnsf::esf::UncertaintyMethod::Jackknife;
+        agnsf::UncertaintyConfig config;
+        config.measurement = agnsf::UncertaintyMethod::Jackknife;
         expect_throw(config);
     }
 
     // within does not support Jackknife / Bootstrap / MonteCarlo.
     {
-        agnsf::esf::UncertaintyConfig config;
-        config.within = agnsf::esf::UncertaintyMethod::Jackknife;
+        agnsf::UncertaintyConfig config;
+        config.within = agnsf::UncertaintyMethod::Jackknife;
         expect_throw(config);
     }
 
     // sampling is not defined for a single light curve.
     {
-        agnsf::esf::UncertaintyConfig config;
-        config.sampling = agnsf::esf::UncertaintyMethod::Analytic;
+        agnsf::UncertaintyConfig config;
+        config.sampling = agnsf::UncertaintyMethod::Analytic;
         expect_throw(config);
     }
 }

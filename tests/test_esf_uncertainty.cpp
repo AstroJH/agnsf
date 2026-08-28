@@ -7,7 +7,7 @@
 #include <esf/pooled_esf_calculator.hpp>
 #include <esf/sf_calculator.hpp>
 #include <esf/sf_ensemble_calculator.hpp>
-#include <esf/sf_uncertainty.hpp>
+#include <core/uncertainty.hpp>
 
 namespace {
 
@@ -153,8 +153,8 @@ void test_analytic_sampling_sqrt_mean_squared()
 
     const agnsf::esf::LagBins bins({0.0, 1.5});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.sampling = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig config;
+    config.sampling = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFEnsembleCalculator calculator;
 
@@ -198,8 +198,8 @@ void test_analytic_sampling_mean_sf()
 
     const agnsf::esf::LagBins bins({0.0, 1.5});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.sampling = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig config;
+    config.sampling = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFCalculator sf_calculator;
 
@@ -238,8 +238,8 @@ void test_jackknife_sampling()
 
     const agnsf::esf::LagBins bins({0.0, 1.5});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.sampling = agnsf::esf::UncertaintyMethod::Jackknife;
+    agnsf::UncertaintyConfig config;
+    config.sampling = agnsf::UncertaintyMethod::Jackknife;
 
     agnsf::esf::SFEnsembleCalculator calculator;
 
@@ -276,8 +276,8 @@ void test_bootstrap_sampling_reproducible()
 
     const agnsf::esf::LagBins bins({0.0, 1.5});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.sampling = agnsf::esf::UncertaintyMethod::Bootstrap;
+    agnsf::UncertaintyConfig config;
+    config.sampling = agnsf::UncertaintyMethod::Bootstrap;
     config.n_bootstrap = 200;
     config.bootstrap_seed = 12345;
 
@@ -340,9 +340,9 @@ void test_measurement_propagation_mean_sf()
 
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
-    agnsf::esf::UncertaintyConfig per_curve_config;
+    agnsf::UncertaintyConfig per_curve_config;
     per_curve_config.measurement =
-        agnsf::esf::UncertaintyMethod::Analytic;
+        agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFCalculator sf_calculator;
 
@@ -386,8 +386,8 @@ void test_measurement_propagation_mean_sf()
     const double sigma =
         std::sqrt(sum_squared_sigma) / n;
 
-    agnsf::esf::UncertaintyConfig config;
-    config.measurement = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig config;
+    config.measurement = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFEnsembleCalculator calculator;
 
@@ -422,8 +422,8 @@ void test_pooled_jackknife()
 
     const agnsf::esf::LagBins bins({0.0, 1.5});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.sampling = agnsf::esf::UncertaintyMethod::Jackknife;
+    agnsf::UncertaintyConfig config;
+    config.sampling = agnsf::UncertaintyMethod::Jackknife;
 
     agnsf::esf::PooledESFCalculator calculator;
 
@@ -462,8 +462,8 @@ void test_pooled_bootstrap_reproducible()
 
     const agnsf::esf::LagBins bins({0.0, 1.5});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.sampling = agnsf::esf::UncertaintyMethod::Bootstrap;
+    agnsf::UncertaintyConfig config;
+    config.sampling = agnsf::UncertaintyMethod::Bootstrap;
     config.n_bootstrap = 300;
     config.bootstrap_seed = 7;
 
@@ -498,8 +498,8 @@ void test_pooled_invalid_config()
 
     // Analytic sampling is not defined for pooled ESF.
     {
-        agnsf::esf::UncertaintyConfig config;
-        config.sampling = agnsf::esf::UncertaintyMethod::Analytic;
+        agnsf::UncertaintyConfig config;
+        config.sampling = agnsf::UncertaintyMethod::Analytic;
 
         bool thrown = false;
 
@@ -515,8 +515,8 @@ void test_pooled_invalid_config()
 
     // Bootstrap needs at least one replicate.
     {
-        agnsf::esf::UncertaintyConfig config;
-        config.sampling = agnsf::esf::UncertaintyMethod::Bootstrap;
+        agnsf::UncertaintyConfig config;
+        config.sampling = agnsf::UncertaintyMethod::Bootstrap;
         config.n_bootstrap = 0;
 
         bool thrown = false;
@@ -555,8 +555,8 @@ void test_within_propagation_mean_sf()
 
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
-    agnsf::esf::UncertaintyConfig per_curve_config;
-    per_curve_config.within = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig per_curve_config;
+    per_curve_config.within = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFCalculator sf_calculator;
 
@@ -598,8 +598,8 @@ void test_within_propagation_mean_sf()
     const double sigma =
         std::sqrt(sum_squared_sigma) / n;
 
-    agnsf::esf::UncertaintyConfig config;
-    config.within = agnsf::esf::UncertaintyMethod::Analytic;
+    agnsf::UncertaintyConfig config;
+    config.within = agnsf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFEnsembleCalculator calculator;
 
@@ -629,8 +629,8 @@ void test_pooled_measurement_monte_carlo()
 
     const agnsf::esf::LagBins bins({0.0, 1.5});
 
-    agnsf::esf::UncertaintyConfig config;
-    config.measurement = agnsf::esf::UncertaintyMethod::MonteCarlo;
+    agnsf::UncertaintyConfig config;
+    config.measurement = agnsf::UncertaintyMethod::MonteCarlo;
     config.n_bootstrap = 400;
     config.bootstrap_seed = 7;
 

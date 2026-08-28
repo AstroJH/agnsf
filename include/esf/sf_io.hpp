@@ -13,7 +13,7 @@
 #include <esf/sf_ensemble_calculator.hpp>
 #include <esf/sf_method.hpp>
 #include <esf/sf_result.hpp>
-#include <esf/sf_uncertainty.hpp>
+#include <core/uncertainty.hpp>
 
 namespace agnsf {
 namespace esf {

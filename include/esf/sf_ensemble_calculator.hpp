@@ -4,7 +4,7 @@
 
 #include <esf/sf_method.hpp>
 #include <esf/sf_result.hpp>
-#include <esf/sf_uncertainty.hpp>
+#include <core/uncertainty.hpp>
 #include <esf/lag_bins.hpp>
 #include <core/light_curve.hpp>
 

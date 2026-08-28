@@ -14,7 +14,6 @@
 #include <esf/pair_accumulator.hpp>
 #include <esf/pooled_esf_calculator.hpp>
 #include <esf/sf_uncertainty_estimator.hpp>
-#include "esf_uncertainty.hpp"
 
 namespace agnsf {
 namespace esf {

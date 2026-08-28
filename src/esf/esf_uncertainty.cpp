@@ -48,11 +48,11 @@ double replicate_statistic(
 } // namespace
 
 
-SFUncertainty analytic_interval(
+Uncertainty analytic_interval(
     const std::vector<double>& values
 )
 {
-    SFUncertainty result;
+    Uncertainty result;
 
     if (values.size() < 2) {
         return result;
@@ -88,12 +88,12 @@ SFUncertainty analytic_interval(
 }
 
 
-SFUncertainty jackknife_interval(
+Uncertainty jackknife_interval(
     const std::vector<double>& values,
     bool sqrt_mean
 )
 {
-    SFUncertainty result;
+    Uncertainty result;
 
     const std::size_t n_size = values.size();
 
@@ -153,14 +153,14 @@ SFUncertainty jackknife_interval(
 }
 
 
-SFUncertainty bootstrap_interval(
+Uncertainty bootstrap_interval(
     const std::vector<double>& values,
     std::size_t n_bootstrap,
     std::uint32_t seed,
     bool sqrt_mean
 )
 {
-    SFUncertainty result;
+    Uncertainty result;
 
     const std::size_t n = values.size();
 
@@ -219,13 +219,13 @@ SFUncertainty bootstrap_interval(
 }
 
 
-SFUncertainty percentile_interval(
+Uncertainty percentile_interval(
     const std::vector<double>& values,
     double p_lo,
     double p_hi
 )
 {
-    SFUncertainty result;
+    Uncertainty result;
 
     std::vector<double> finite_values;
 
@@ -258,8 +258,8 @@ SFUncertainty percentile_interval(
 }
 
 
-SFUncertainty map_interval_to_sf(
-    const SFUncertainty& interval,
+Uncertainty map_interval_to_sf(
+    const Uncertainty& interval,
     bool sqrt_transform
 )
 {
@@ -268,10 +268,10 @@ SFUncertainty map_interval_to_sf(
     }
 
     if (!interval.estimated()) {
-        return SFUncertainty{};
+        return Uncertainty{};
     }
 
-    SFUncertainty result;
+    Uncertainty result;
 
     result.lower =
         std::sqrt(std::max(interval.lower, 0.0));
