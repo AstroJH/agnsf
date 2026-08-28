@@ -4,6 +4,9 @@
 
 > 🚧 **Work in progress.**  
 > The project is currently under active development and is not yet ready for general use.
+> 
+> ⚠️ **Note**  
+> AGNSF is currently tested on macOS with a C++17 compiler and Python 3.
 
 ## Planned Features
 
@@ -36,7 +39,7 @@ cmake --build build -j
 ### Install with pip
 
 ```sh
-python -m pip install https://github.com/AstroJH/agnsf.git
+python -m pip install git+https://github.com/AstroJH/agnsf.git
 ```
 
 This installs both the Python bindings and the AGNSF CLI.
@@ -101,7 +104,7 @@ AGNSF supports two approaches for calculating ensemble structure functions:
 
 AGNSF can estimate uncertainties on the structure function for every lag
 bin. Uncertainty is reported as an **asymmetric interval** `[lower, upper]`
-(`SFUncertainty`), where NaN means "not estimated". Symmetric estimates are
+(`Uncertainty`), where NaN means "not estimated". Symmetric estimates are
 represented by `lower == upper`.
 
 ### Configuration
