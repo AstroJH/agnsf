@@ -16,6 +16,7 @@ class EnsembleMethod:
 class UncertaintyMethod:
     Off: UncertaintyMethod
     Analytic: UncertaintyMethod
+    MonteCarlo: UncertaintyMethod
     Jackknife: UncertaintyMethod
     Bootstrap: UncertaintyMethod
 
@@ -30,6 +31,7 @@ class SFUncertainty:
 
 class UncertaintyConfig:
     measurement: UncertaintyMethod
+    within: UncertaintyMethod
     sampling: UncertaintyMethod
     n_bootstrap: int
     bootstrap_seed: int
@@ -37,6 +39,7 @@ class UncertaintyConfig:
     def __init__(
         self,
         measurement: UncertaintyMethod = UncertaintyMethod.Off,
+        within: UncertaintyMethod = UncertaintyMethod.Off,
         sampling: UncertaintyMethod = UncertaintyMethod.Off,
         n_bootstrap: int = 100,
         bootstrap_seed: int = 0,
@@ -48,6 +51,7 @@ class SFBinResult:
     sf_squared: float
     sf: float
     measurement: SFUncertainty
+    within: SFUncertainty
     sampling: SFUncertainty
 
 

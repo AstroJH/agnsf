@@ -21,8 +21,16 @@ struct SFBinResult {
     double sf =
         std::numeric_limits<double>::quiet_NaN();
 
-    // Measurement uncertainty on SF or ESF (NaN when not estimated).
+    // Measurement uncertainty on SF/ESF (NaN when not estimated).
+    //
+    // Uncertainty propagated from the measurement errors sigma_i 
+    // (closed-form propagation or observation-level Monte Carlo).
     SFUncertainty measurement;
+
+    // Naive within-bin statistical uncertainty (NaN when not
+    // estimated): standard error of the per-pair mean under the
+    // pair-independence approximation (s_X / sqrt(N_pair)).
+    SFUncertainty within;
 
     // Source-to-source sampling uncertainty on ESF.
     //

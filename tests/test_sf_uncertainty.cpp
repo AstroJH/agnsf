@@ -30,64 +30,51 @@ void check_close(double actual, double expected)
 }
 
 
-double mean_of(const std::vector<double>& values)
+agnsf::LightCurve make_curve()
 {
-    double sum = 0.0;
-
-    for (const double value : values) {
-        sum += value;
-    }
-
-    return sum / static_cast<double>(values.size());
-}
-
-
-double sample_var(const std::vector<double>& values)
-{
-    const double mean = mean_of(values);
-
-    double sum_squared_deviation = 0.0;
-
-    for (const double value : values) {
-        const double deviation = value - mean;
-        sum_squared_deviation += deviation * deviation;
-    }
-
-    return sum_squared_deviation /
-        static_cast<double>(values.size() - 1);
+    // time {0,1,2,3}, value {0,1,1,2}, error 0.2
+    return agnsf::LightCurve(
+        {0.0, 1.0, 2.0, 3.0},
+        {0.0, 1.0, 1.0, 2.0},
+        {0.2, 0.2, 0.2, 0.2}
+    );
 }
 
 
 void test_off_by_default()
 {
-    agnsf::LightCurve data(
-        {0.0, 1.0, 2.0, 3.0},
-        {0.0, 1.0, 1.0, 2.0},
-        {0.2, 0.2, 0.2, 0.2}
-    );
-
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
     agnsf::esf::SFCalculator calculator;
 
     const agnsf::esf::SFResult result =
-        calculator.calculate(data, bins);
+        calculator.calculate(make_curve(), bins);
 
     for (const auto& bin : result.bins()) {
         assert(!bin.measurement.estimated());
+        assert(!bin.within.estimated());
         assert(!bin.sampling.estimated());
     }
 }
 
 
-void test_second_order()
+void test_measurement_second_order()
 {
-    agnsf::LightCurve data(
-        {0.0, 1.0, 2.0, 3.0},
-        {0.0, 1.0, 1.0, 2.0},
-        {0.2, 0.2, 0.2, 0.2}
-    );
-
+    /*
+     * Measurement uncertainty = propagation of the per-observation
+     * errors sigma_i (independent-pairs approximation):
+     *
+     *   Var_meas(SF^2) = 1/N^2 * sum_p [ 4 D_p^2 sigma_{Delta,p}^2
+     *                                     + 2 sigma_{Delta,p}^4 ]
+     *
+     * Bin 0 (lag 1): pairs (0,1),(1,2),(2,3); delta = 1,0,1;
+     * noise = sigma_i^2 + sigma_j^2 = 0.08 each.
+     *
+     *   sum(delta^2 * noise) = 0.16
+     *   sum(noise^2)         = 3 * 0.08^2 = 0.0192
+     *   Var_meas(SF^2)       = (4*0.16 + 2*0.0192) / 9
+     *   sigma_SF             = sigma_SF2 / (2*SF)
+     */
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
     agnsf::esf::UncertaintyConfig config;
@@ -97,116 +84,42 @@ void test_second_order()
 
     const agnsf::esf::SFResult result =
         calculator.calculate(
-            data,
+            make_curve(),
             bins,
             agnsf::esf::SFMethod::SecondOrder,
             config
         );
 
-    /*
-     * Bin 0 (lag 1): pairs (0,1), (1,2), (2,3).
-     *
-     *   delta = 1, 0, 1; noise = 0.08 each
-     *   x_k   = 0.92, -0.08, 0.92
-     *
-     * mean = 0.586666..., sample_var = 1/3, se = 1/3.
-     * sf^2 = 0.586666...; interval on sf via sqrt.
-     */
-    {
-        const std::vector<double> x = {0.92, -0.08, 0.92};
+    const double sum_d2_noise = 1.0 * 0.08 + 0.0 * 0.08 + 1.0 * 0.08;
+    const double sum_noise2 = 3.0 * 0.08 * 0.08;
+    const double var_sf2 =
+        (4.0 * sum_d2_noise + 2.0 * sum_noise2) / 9.0;
+    const double sigma_sf2 = std::sqrt(var_sf2);
 
-        const double mean = mean_of(x);
-        const double se =
-            std::sqrt(sample_var(x) / 3.0);
+    const double sf2 = (1.0 + 0.0 + 1.0 - 3.0 * 0.08) / 3.0;
+    const double sf = std::sqrt(sf2);
 
-        const double lower =
-            std::sqrt(std::max(mean - se, 0.0));
-        const double upper =
-            std::sqrt(mean + se);
-
-        const auto& bin = result.bin(0);
-
-        assert(bin.measurement.estimated());
-        check_close(bin.measurement.lower, lower);
-        check_close(bin.measurement.upper, upper);
-
-        // Non-degenerate se gives an asymmetric interval around sf:
-        // sqrt is concave, so the two sides differ.
-        const double sf = std::sqrt(mean);
-        assert(
-            std::abs(
-                (bin.measurement.upper - sf) -
-                (sf - bin.measurement.lower)
-            ) > 1e-12
-        );
-    }
-
-    /*
-     * Bin 1 (lag 2): pairs (0,2), (1,3); delta = 1, 1.
-     * The true sample variance is zero; a tiny interval width is
-     * expected from floating-point cancellation, so a loose
-     * tolerance is used here.
-     */
-    {
-        const auto& bin = result.bin(1);
-
-        assert(bin.measurement.estimated());
-        assert(close(bin.measurement.lower, bin.measurement.upper, 1e-6));
-        assert(close(bin.measurement.lower, std::sqrt(0.92), 1e-6));
-    }
-}
-
-
-void test_second_order_no_noise()
-{
-    agnsf::LightCurve data(
-        {0.0, 1.0, 2.0, 3.0},
-        {0.0, 1.0, 1.0, 2.0},
-        {0.2, 0.2, 0.2, 0.2}
-    );
-
-    const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
-
-    agnsf::esf::UncertaintyConfig config;
-    config.measurement = agnsf::esf::UncertaintyMethod::Analytic;
-
-    agnsf::esf::SFCalculator calculator;
-
-    const agnsf::esf::SFResult result =
-        calculator.calculate(
-            data,
-            bins,
-            agnsf::esf::SFMethod::SecondOrderNoNoise,
-            config
-        );
-
-    /*
-     * Bin 0: x_k = delta^2 = 1, 0, 1.
-     *   mean = 2/3, sample_var = 1/3, se = 1/3.
-     */
-    const std::vector<double> x = {1.0, 0.0, 1.0};
-
-    const double mean = mean_of(x);
-    const double se =
-        std::sqrt(sample_var(x) / 3.0);
+    const double sigma_sf = sigma_sf2 / (2.0 * sf);
 
     const auto& bin = result.bin(0);
 
-    check_close(bin.measurement.lower,
-        std::sqrt(std::max(mean - se, 0.0)));
-    check_close(bin.measurement.upper,
-        std::sqrt(mean + se));
+    assert(bin.measurement.estimated());
+    check_close(bin.measurement.lower, sf - sigma_sf);
+    check_close(bin.measurement.upper, sf + sigma_sf);
 }
 
 
-void test_mean_absolute_deviation()
+void test_measurement_mean_absolute_deviation()
 {
-    agnsf::LightCurve data(
-        {0.0, 1.0, 2.0, 3.0},
-        {0.0, 1.0, 1.0, 2.0},
-        {0.2, 0.2, 0.2, 0.2}
-    );
-
+    /*
+     * Linear propagation through the mean absolute difference:
+     *
+     *   Var_meas(SF^2) ~= pi^2 * <|delta|>^2 * sum(sigma_{Delta}^2) / N^2
+     *
+     * Bin 0: |delta| = 1,0,1; noise = 0.08 each.
+     *
+     *   mean_abs = 2/3, sum(noise) = 0.24
+     */
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
     agnsf::esf::UncertaintyConfig config;
@@ -216,114 +129,174 @@ void test_mean_absolute_deviation()
 
     const agnsf::esf::SFResult result =
         calculator.calculate(
-            data,
+            make_curve(),
             bins,
             agnsf::esf::SFMethod::MeanAbsoluteDeviation,
             config
         );
 
-    /*
-     * Bin 0: |delta| = 1, 0, 1; noise = 0.08 each.
-     *
-     *   mean_abs = 2/3, sample_var = 1/3, se_abs = 1/3.
-     *   d(SF^2) = pi * mean_abs * se_abs = 2*pi/9.
-     *   SF^2    = pi/2 * (2/3)^2 - 0.08 = 2*pi/9 - 0.08.
-     */
     const double mean_abs = 2.0 / 3.0;
-    const double se_abs =
-        std::sqrt(sample_var({1.0, 0.0, 1.0}) / 3.0);
+    const double var_sf2 =
+        kPi * kPi * mean_abs * mean_abs * 0.24 / 9.0;
+    const double sigma_sf2 = std::sqrt(var_sf2);
 
-    const double delta_sf2 = kPi * mean_abs * se_abs;
     const double sf2 = (kPi / 2.0) * mean_abs * mean_abs - 0.08;
+    const double sf = std::sqrt(sf2);
+
+    const double sigma_sf = sigma_sf2 / (2.0 * sf);
 
     const auto& bin = result.bin(0);
 
-    check_close(
-        bin.measurement.lower,
-        std::sqrt(std::max(sf2 - delta_sf2, 0.0))
-    );
-    check_close(
-        bin.measurement.upper,
-        std::sqrt(sf2 + delta_sf2)
-    );
+    assert(bin.measurement.estimated());
+    check_close(bin.measurement.lower, sf - sigma_sf);
+    check_close(bin.measurement.upper, sf + sigma_sf);
 }
 
 
-void test_mean_absolute_deviation_no_noise()
+void test_measurement_monte_carlo()
 {
-    agnsf::LightCurve data(
-        {0.0, 1.0, 2.0, 3.0},
-        {0.0, 1.0, 1.0, 2.0},
-        {0.2, 0.2, 0.2, 0.2}
-    );
-
     const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
 
     agnsf::esf::UncertaintyConfig config;
-    config.measurement = agnsf::esf::UncertaintyMethod::Analytic;
+    config.measurement = agnsf::esf::UncertaintyMethod::MonteCarlo;
+    config.n_bootstrap = 500;
+    config.bootstrap_seed = 42;
+
+    agnsf::esf::SFCalculator calculator;
+
+    const agnsf::esf::SFResult first =
+        calculator.calculate(
+            make_curve(),
+            bins,
+            agnsf::esf::SFMethod::SecondOrder,
+            config
+        );
+
+    const agnsf::esf::SFResult second =
+        calculator.calculate(
+            make_curve(),
+            bins,
+            agnsf::esf::SFMethod::SecondOrder,
+            config
+        );
+
+    // Reproducible with the same seed.
+    check_close(first.bin(0).measurement.lower,
+                second.bin(0).measurement.lower);
+    check_close(first.bin(0).measurement.upper,
+                second.bin(0).measurement.upper);
+
+    const auto& bin = first.bin(0);
+
+    assert(bin.measurement.estimated());
+    assert(std::isfinite(bin.measurement.lower));
+    assert(std::isfinite(bin.measurement.upper));
+    assert(bin.measurement.lower <= bin.measurement.upper);
+    assert(bin.measurement.lower < bin.measurement.upper);  // noise -> width > 0
+
+    // The point estimate should lie within the 16/84 interval for
+    // this symmetric-ish data.
+    assert(bin.measurement.lower <= bin.sf + 1e-9);
+    assert(bin.measurement.upper >= bin.sf - 1e-9);
+}
+
+
+void test_within_second_order()
+{
+    /*
+     * Naive within-bin statistical uncertainty:
+     *
+     *   x_k = delta_k^2 - noise_k;  se = sample_std(x) / sqrt(N)
+     *
+     * Bin 0: x = 0.92, -0.08, 0.92; mean = 0.5866667,
+     * sample_var = 1/3, se = 1/3.
+     */
+    const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
+
+    agnsf::esf::UncertaintyConfig config;
+    config.within = agnsf::esf::UncertaintyMethod::Analytic;
 
     agnsf::esf::SFCalculator calculator;
 
     const agnsf::esf::SFResult result =
         calculator.calculate(
-            data,
+            make_curve(),
             bins,
-            agnsf::esf::SFMethod::MeanAbsoluteDeviationNoNoise,
+            agnsf::esf::SFMethod::SecondOrder,
+            config
+        );
+
+    const std::vector<double> x = {0.92, -0.08, 0.92};
+
+    const double mean = (0.92 - 0.08 + 0.92) / 3.0;
+    const double sample_var =
+        (
+            (0.92 - mean) * (0.92 - mean) +
+            (-0.08 - mean) * (-0.08 - mean) +
+            (0.92 - mean) * (0.92 - mean)
+        ) / 2.0;
+    const double se = std::sqrt(sample_var / 3.0);
+
+    const auto& bin = result.bin(0);
+
+    assert(bin.within.estimated());
+    check_close(
+        bin.within.lower,
+        std::sqrt(std::max(mean - se, 0.0))
+    );
+    check_close(
+        bin.within.upper,
+        std::sqrt(mean + se)
+    );
+}
+
+
+void test_within_mean_absolute_deviation()
+{
+    const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
+
+    agnsf::esf::UncertaintyConfig config;
+    config.within = agnsf::esf::UncertaintyMethod::Analytic;
+
+    agnsf::esf::SFCalculator calculator;
+
+    const agnsf::esf::SFResult result =
+        calculator.calculate(
+            make_curve(),
+            bins,
+            agnsf::esf::SFMethod::MeanAbsoluteDeviation,
             config
         );
 
     const double mean_abs = 2.0 / 3.0;
-    const double se_abs =
-        std::sqrt(sample_var({1.0, 0.0, 1.0}) / 3.0);
-
+    const double sample_var =
+        (
+            (1.0 - mean_abs) * (1.0 - mean_abs) +
+            (0.0 - mean_abs) * (0.0 - mean_abs) +
+            (1.0 - mean_abs) * (1.0 - mean_abs)
+        ) / 2.0;
+    const double se_abs = std::sqrt(sample_var / 3.0);
     const double delta_sf2 = kPi * mean_abs * se_abs;
-    const double sf2 = (kPi / 2.0) * mean_abs * mean_abs;
+
+    const double sf2 = (kPi / 2.0) * mean_abs * mean_abs - 0.08;
 
     const auto& bin = result.bin(0);
 
+    assert(bin.within.estimated());
     check_close(
-        bin.measurement.lower,
+        bin.within.lower,
         std::sqrt(std::max(sf2 - delta_sf2, 0.0))
     );
     check_close(
-        bin.measurement.upper,
+        bin.within.upper,
         std::sqrt(sf2 + delta_sf2)
     );
 }
 
 
-void test_single_pair_bin_unestimated()
-{
-    /*
-     * Only one pair overall -> N = 1 in the bin: the within-bin
-     * standard error is undefined, so the interval stays NaN.
-     */
-    agnsf::LightCurve data(
-        {0.0, 3.0},
-        {0.0, 1.0},
-        {0.1, 0.1}
-    );
-
-    const agnsf::esf::LagBins bins({0.0, 4.0});
-
-    agnsf::esf::UncertaintyConfig config;
-    config.measurement = agnsf::esf::UncertaintyMethod::Analytic;
-
-    agnsf::esf::SFCalculator calculator;
-
-    const agnsf::esf::SFResult result =
-        calculator.calculate(data, bins, agnsf::esf::SFMethod::SecondOrder, config);
-
-    assert(!result.bin(0).measurement.estimated());
-}
-
-
 void test_noise_dominated_unestimated()
 {
-    /*
-     * noise >> signal: SF^2 < 0, so sf is NaN and no measurement
-     * interval can be attached to it.
-     */
+    // noise >> signal -> SF^2 < 0 -> sf = NaN -> no measurement.
     agnsf::LightCurve data(
         {0.0, 1.0, 2.0},
         {0.0, 0.0, 0.0},
@@ -352,48 +325,49 @@ void test_noise_dominated_unestimated()
 
 void test_invalid_config()
 {
-    agnsf::LightCurve data(
-        {0.0, 1.0},
-        {0.0, 1.0},
-        {0.1, 0.1}
-    );
-
     const agnsf::esf::LagBins bins({0.0, 2.0});
 
     agnsf::esf::SFCalculator calculator;
 
-    // Measurement supports only Off / Analytic.
+    const auto expect_throw =
+        [&](const agnsf::esf::UncertaintyConfig& config)
+        {
+            bool thrown = false;
+
+            try {
+                calculator.calculate(
+                    make_curve(),
+                    bins,
+                    agnsf::esf::SFMethod::SecondOrder,
+                    config
+                );
+            }
+            catch (const std::invalid_argument&) {
+                thrown = true;
+            }
+
+            assert(thrown);
+        };
+
+    // measurement does not support Jackknife / Bootstrap.
     {
         agnsf::esf::UncertaintyConfig config;
         config.measurement = agnsf::esf::UncertaintyMethod::Jackknife;
-
-        bool thrown = false;
-
-        try {
-            calculator.calculate(data, bins, agnsf::esf::SFMethod::SecondOrder, config);
-        }
-        catch (const std::invalid_argument&) {
-            thrown = true;
-        }
-
-        assert(thrown);
+        expect_throw(config);
     }
 
-    // Sampling is not defined for a single light curve.
+    // within does not support Jackknife / Bootstrap / MonteCarlo.
+    {
+        agnsf::esf::UncertaintyConfig config;
+        config.within = agnsf::esf::UncertaintyMethod::Jackknife;
+        expect_throw(config);
+    }
+
+    // sampling is not defined for a single light curve.
     {
         agnsf::esf::UncertaintyConfig config;
         config.sampling = agnsf::esf::UncertaintyMethod::Analytic;
-
-        bool thrown = false;
-
-        try {
-            calculator.calculate(data, bins, agnsf::esf::SFMethod::SecondOrder, config);
-        }
-        catch (const std::invalid_argument&) {
-            thrown = true;
-        }
-
-        assert(thrown);
+        expect_throw(config);
     }
 }
 
@@ -403,11 +377,11 @@ void test_invalid_config()
 int main()
 {
     test_off_by_default();
-    test_second_order();
-    test_second_order_no_noise();
-    test_mean_absolute_deviation();
-    test_mean_absolute_deviation_no_noise();
-    test_single_pair_bin_unestimated();
+    test_measurement_second_order();
+    test_measurement_mean_absolute_deviation();
+    test_measurement_monte_carlo();
+    test_within_second_order();
+    test_within_mean_absolute_deviation();
     test_noise_dominated_unestimated();
     test_invalid_config();
 

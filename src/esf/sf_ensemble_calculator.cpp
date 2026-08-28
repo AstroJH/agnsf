@@ -95,16 +95,44 @@ bool uses_squared_scale(
 }
 
 
+/**
+ * Working-scale sigma of one curve's interval half-width:
+ *
+ *   MeanSf:          sigma = half_width
+ *   SqrtMeanSquared: sigma(sf^2) ~= 2 * sf * half_width  (delta method)
+ */
+double working_sigma_of(
+    double half_width,
+    double sf,
+    SFEnsembleCalculator::Method method
+)
+{
+    return uses_squared_scale(method)
+        ? 2.0 * sf * half_width
+        : half_width;
+}
+
+
 void validate_config(
     const UncertaintyConfig& config
 )
 {
     if (config.measurement != UncertaintyMethod::Off &&
-        config.measurement != UncertaintyMethod::Analytic) {
+        config.measurement != UncertaintyMethod::Analytic &&
+        config.measurement != UncertaintyMethod::MonteCarlo) {
 
         throw std::invalid_argument(
             "SFEnsembleCalculator: measurement uncertainty supports "
-            "only Off or Analytic"
+            "Off, Analytic, or MonteCarlo"
+        );
+    }
+
+    if (config.within != UncertaintyMethod::Off &&
+        config.within != UncertaintyMethod::Analytic) {
+
+        throw std::invalid_argument(
+            "SFEnsembleCalculator: within uncertainty supports "
+            "Off or Analytic"
         );
     }
 
@@ -117,6 +145,58 @@ void validate_config(
     }
 }
 
+
+/**
+ * Combine per-curve half-widths in quadrature (independent curves)
+ * and map the resulting interval on the working scale (SF or SF^2)
+ * onto sf.
+ */
+std::vector<SFUncertainty> combine_working_intervals(
+    const std::vector<double>& sum2,
+    const std::vector<std::size_t>& count,
+    const std::vector<SFBinResult>& results,
+    SFEnsembleCalculator::Method method
+)
+{
+    const bool sqrt_transform =
+        uses_squared_scale(method);
+
+    std::vector<SFUncertainty> intervals(
+        results.size()
+    );
+
+    for (std::size_t j = 0; j < results.size(); ++j) {
+
+        const double n =
+            static_cast<double>(count[j]);
+
+        if (n < 1.0 ||
+            !std::isfinite(results[j].sf)) {
+            continue;
+        }
+
+        const double sigma =
+            std::sqrt(sum2[j]) / n;
+
+        // Working-scale mean (SF for MeanSf, SF^2 for SqrtMeanSquared).
+        const double working_mean =
+            sqrt_transform
+                ? results[j].sf_squared
+                : results[j].sf;
+
+        SFUncertainty working;
+        working.lower = working_mean - sigma;
+        working.upper = working_mean + sigma;
+
+        intervals[j] =
+            detail::map_interval_to_sf(
+                working,
+                sqrt_transform
+            );
+    }
+
+    return intervals;
+}
 
 /**
  * Fill the measurement uncertainty of every bin.
@@ -137,37 +217,37 @@ void fill_measurement(
     SFEnsembleCalculator::Method method
 )
 {
-    const bool sqrt_transform =
-        uses_squared_scale(method);
+    const std::vector<SFUncertainty> intervals =
+        combine_working_intervals(
+            meas2,
+            meas_count,
+            results,
+            method
+        );
 
     for (std::size_t j = 0; j < results.size(); ++j) {
+        results[j].measurement = intervals[j];
+    }
+}
 
-        const double n_meas =
-            static_cast<double>(meas_count[j]);
 
-        if (n_meas < 1.0 ||
-            !std::isfinite(results[j].sf)) {
-            continue;
-        }
+void fill_within(
+    std::vector<SFBinResult>& results,
+    const std::vector<double>& within2,
+    const std::vector<std::size_t>& within_count,
+    SFEnsembleCalculator::Method method
+)
+{
+    const std::vector<SFUncertainty> intervals =
+        combine_working_intervals(
+            within2,
+            within_count,
+            results,
+            method
+        );
 
-        const double sigma =
-            std::sqrt(meas2[j]) / n_meas;
-
-        // Working-scale mean (SF for MeanSf, SF^2 for SqrtMeanSquared).
-        const double working_mean =
-            sqrt_transform
-                ? results[j].sf_squared
-                : results[j].sf;
-
-        SFUncertainty working;
-        working.lower = working_mean - sigma;
-        working.upper = working_mean + sigma;
-
-        results[j].measurement =
-            detail::map_interval_to_sf(
-                working,
-                sqrt_transform
-            );
+    for (std::size_t j = 0; j < results.size(); ++j) {
+        results[j].within = intervals[j];
     }
 }
 
@@ -281,6 +361,7 @@ void fill_sampling(
             }
 
             case UncertaintyMethod::Off:
+            case UncertaintyMethod::MonteCarlo:
                 break;
         }
 
@@ -317,6 +398,9 @@ SFResult calculate_ensemble(
 
     const bool want_measurement =
         config.measurement != UncertaintyMethod::Off;
+
+    const bool want_within =
+        config.within == UncertaintyMethod::Analytic;
 
     const bool want_analytic_sampling =
         config.sampling == UncertaintyMethod::Analytic;
@@ -398,6 +482,22 @@ SFResult calculate_ensemble(
         );
     }
 
+    std::vector<std::vector<double>> thread_within2;
+
+    std::vector<std::vector<std::size_t>> thread_within_count;
+
+    if (want_within) {
+        thread_within2.assign(
+            n_threads,
+            std::vector<double>(bins.size(), 0.0)
+        );
+
+        thread_within_count.assign(
+            n_threads,
+            std::vector<std::size_t>(bins.size(), 0)
+        );
+    }
+
     /*
      * Per-curve values (SF or SF^2) retained for jackknife /
      * bootstrap sampling. Each thread writes only its own rows.
@@ -446,6 +546,7 @@ SFResult calculate_ensemble(
                 // sampling is handled at the ensemble level.
                 const UncertaintyConfig per_curve_config{
                     config.measurement,
+                    config.within,
                     UncertaintyMethod::Off,
                     0,
                     0
@@ -503,38 +604,62 @@ SFResult calculate_ensemble(
 
                         if (want_measurement) {
 
-                            const SFUncertainty& measurement =
+                            const SFUncertainty& interval =
                                 result.bin(j).measurement;
 
-                            if (!measurement.estimated()) {
-                                continue;
+                            if (interval.estimated()) {
+
+                                const double half_width =
+                                    (
+                                        interval.upper -
+                                        interval.lower
+                                    ) / 2.0;
+
+                                if (std::isfinite(half_width)) {
+
+                                    const double working_sigma =
+                                        working_sigma_of(
+                                            half_width,
+                                            result.bin(j).sf,
+                                            method
+                                        );
+
+                                    thread_meas2[thread_id][j] +=
+                                        working_sigma * working_sigma;
+
+                                    ++thread_meas_count[thread_id][j];
+                                }
                             }
+                        }
 
-                            const double half_width =
-                                (
-                                    measurement.upper -
-                                    measurement.lower
-                                ) / 2.0;
+                        if (want_within) {
 
-                            if (!std::isfinite(half_width)) {
-                                continue;
+                            const SFUncertainty& interval =
+                                result.bin(j).within;
+
+                            if (interval.estimated()) {
+
+                                const double half_width =
+                                    (
+                                        interval.upper -
+                                        interval.lower
+                                    ) / 2.0;
+
+                                if (std::isfinite(half_width)) {
+
+                                    const double working_sigma =
+                                        working_sigma_of(
+                                            half_width,
+                                            result.bin(j).sf,
+                                            method
+                                        );
+
+                                    thread_within2[thread_id][j] +=
+                                        working_sigma * working_sigma;
+
+                                    ++thread_within_count[thread_id][j];
+                                }
                             }
-
-                            /*
-                             * Working-scale sigma of this curve:
-                             *   MeanSf:          sigma = half_width
-                             *   SqrtMeanSquared: sigma(sf^2) ~= 2*sf*hw
-                             */
-                            const double working_sigma =
-                                uses_squared_scale(method)
-                                    ? 2.0 * result.bin(j).sf *
-                                      half_width
-                                    : half_width;
-
-                            thread_meas2[thread_id][j] +=
-                                working_sigma * working_sigma;
-
-                            ++thread_meas_count[thread_id][j];
                         }
                     }
                 }
@@ -576,6 +701,16 @@ SFResult calculate_ensemble(
         0
     );
 
+    std::vector<double> within2(
+        bins.size(),
+        0.0
+    );
+
+    std::vector<std::size_t> within_count(
+        bins.size(),
+        0
+    );
+
     for (std::size_t thread_id = 0;
          thread_id < n_threads;
          ++thread_id) {
@@ -602,6 +737,14 @@ SFResult calculate_ensemble(
                 meas_count[i] +=
                     thread_meas_count[thread_id][i];
             }
+
+            if (want_within) {
+                within2[i] +=
+                    thread_within2[thread_id][i];
+
+                within_count[i] +=
+                    thread_within_count[thread_id][i];
+            }
         }
     }
 
@@ -615,6 +758,15 @@ SFResult calculate_ensemble(
             bins_out,
             meas2,
             meas_count,
+            method
+        );
+    }
+
+    if (want_within) {
+        fill_within(
+            bins_out,
+            within2,
+            within_count,
             method
         );
     }

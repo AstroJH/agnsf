@@ -25,6 +25,8 @@ class SFArrays(NamedTuple):
     valid: NDArray[np.bool_]
     measurement_lower: NDArray[np.float64]
     measurement_upper: NDArray[np.float64]
+    within_lower: NDArray[np.float64]
+    within_upper: NDArray[np.float64]
     sampling_lower: NDArray[np.float64]
     sampling_upper: NDArray[np.float64]
 
@@ -35,6 +37,8 @@ def to_arrays(result: SFResult, bins: LagBins) -> SFArrays:
     ``lag`` is the arithmetic mean of each bin's edges, ``sf`` the
     structure function, ``count`` the number of contributions, and
     ``valid`` marks bins with contributions and a finite ``sf``.
+    ``measurement_*`` / ``within_*`` / ``sampling_*`` are NaN when the
+    corresponding uncertainty was not estimated.
     """
     lag = np.array([
         np.mean(bins[i])
@@ -63,6 +67,16 @@ def to_arrays(result: SFResult, bins: LagBins) -> SFArrays:
         for i in range(len(result))
     ])
 
+    within_lower = np.array([
+        result[i].within.lower
+        for i in range(len(result))
+    ])
+
+    within_upper = np.array([
+        result[i].within.upper
+        for i in range(len(result))
+    ])
+
     sampling_lower = np.array([
         result[i].sampling.lower
         for i in range(len(result))
@@ -80,6 +94,8 @@ def to_arrays(result: SFResult, bins: LagBins) -> SFArrays:
         valid=valid,
         measurement_lower=measurement_lower,
         measurement_upper=measurement_upper,
+        within_lower=within_lower,
+        within_upper=within_upper,
         sampling_lower=sampling_lower,
         sampling_upper=sampling_upper,
     )

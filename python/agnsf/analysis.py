@@ -48,6 +48,7 @@ _AGGREGATIONS: dict[str, EnsembleMethod] = {
 _UNCERTAINTY_METHODS: dict[str, UncertaintyMethod] = {
     "off": UncertaintyMethod.Off,
     "analytic": UncertaintyMethod.Analytic,
+    "monte_carlo": UncertaintyMethod.MonteCarlo,
     "jackknife": UncertaintyMethod.Jackknife,
     "bootstrap": UncertaintyMethod.Bootstrap,
 }
@@ -141,6 +142,12 @@ def _coerce_uncertainty(
         if key in ("analytic", "measurement"):
             return UncertaintyConfig(measurement=UncertaintyMethod.Analytic)
 
+        if key in ("monte_carlo", "mc"):
+            return UncertaintyConfig(measurement=UncertaintyMethod.MonteCarlo)
+
+        if key == "within":
+            return UncertaintyConfig(within=UncertaintyMethod.Analytic)
+
         if key in ("jackknife", "sampling"):
             return UncertaintyConfig(sampling=UncertaintyMethod.Jackknife)
 
@@ -149,8 +156,8 @@ def _coerce_uncertainty(
 
         raise ValueError(
             f"invalid uncertainty shorthand {value!r}; expected "
-            "'analytic' | 'measurement' | 'jackknife' | 'sampling' | "
-            "'bootstrap'"
+            "'analytic' | 'measurement' | 'monte_carlo' | 'within' | "
+            "'jackknife' | 'sampling' | 'bootstrap'"
         )
 
     if isinstance(value, Mapping):
@@ -160,6 +167,9 @@ def _coerce_uncertainty(
             config.measurement = _coerce_uncertainty_method(
                 value["measurement"]
             )
+
+        if "within" in value:
+            config.within = _coerce_uncertainty_method(value["within"])
 
         if "sampling" in value:
             config.sampling = _coerce_uncertainty_method(value["sampling"])

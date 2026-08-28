@@ -219,6 +219,45 @@ SFUncertainty bootstrap_interval(
 }
 
 
+SFUncertainty percentile_interval(
+    const std::vector<double>& values,
+    double p_lo,
+    double p_hi
+)
+{
+    SFUncertainty result;
+
+    std::vector<double> finite_values;
+
+    for (const double value : values) {
+        if (std::isfinite(value)) {
+            finite_values.push_back(value);
+        }
+    }
+
+    if (finite_values.size() < 2) {
+        return result;
+    }
+
+    std::sort(finite_values.begin(), finite_values.end());
+
+    const std::size_t lower_index =
+        static_cast<std::size_t>(
+            p_lo * static_cast<double>(finite_values.size() - 1)
+        );
+
+    const std::size_t upper_index =
+        static_cast<std::size_t>(
+            p_hi * static_cast<double>(finite_values.size() - 1)
+        );
+
+    result.lower = finite_values[lower_index];
+    result.upper = finite_values[upper_index];
+
+    return result;
+}
+
+
 SFUncertainty map_interval_to_sf(
     const SFUncertainty& interval,
     bool sqrt_transform

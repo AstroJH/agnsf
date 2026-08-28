@@ -14,6 +14,7 @@
 #include <esf/pair_accumulator.hpp>
 #include <esf/pooled_esf_calculator.hpp>
 #include <esf/sf_uncertainty_estimator.hpp>
+#include "esf_uncertainty.hpp"
 
 namespace agnsf {
 namespace esf {
@@ -25,11 +26,21 @@ void validate_config(
 )
 {
     if (config.measurement != UncertaintyMethod::Off &&
-        config.measurement != UncertaintyMethod::Analytic) {
+        config.measurement != UncertaintyMethod::Analytic &&
+        config.measurement != UncertaintyMethod::MonteCarlo) {
 
         throw std::invalid_argument(
             "PooledESFCalculator: measurement uncertainty supports "
-            "only Off or Analytic"
+            "Off, Analytic, or MonteCarlo"
+        );
+    }
+
+    if (config.within != UncertaintyMethod::Off &&
+        config.within != UncertaintyMethod::Analytic) {
+
+        throw std::invalid_argument(
+            "PooledESFCalculator: within uncertainty supports "
+            "Off or Analytic"
         );
     }
 
@@ -64,8 +75,126 @@ void fill_measurement(
     std::unique_ptr<SFMeasurementUncertaintyEstimator> estimator =
         make_sf_measurement_uncertainty_estimator(method);
 
+    if (!estimator) {
+        return;
+    }
+
     for (std::size_t j = 0; j < results.size(); ++j) {
         results[j].measurement =
+            estimator->estimate(accumulators[j]);
+    }
+}
+
+
+/**
+ * Monte Carlo measurement uncertainty for the pooled ESF.
+ *
+ * Each realization perturbs every observation, recomputes the pooled ESF,
+ * and the 16th/84th percentiles of the per-bin sf distribution form the 
+ * interval.
+ */
+void fill_measurement_mc(
+    std::vector<SFBinResult>& results,
+    const std::vector<agnsf::LightCurveView>& data,
+    const LagBins& bins,
+    SFMethod method,
+    const UncertaintyConfig& config,
+    double redshift,
+    const std::vector<double>* redshifts
+)
+{
+    const std::size_t n_realizations =
+        std::max<std::size_t>(config.n_bootstrap, 1);
+
+    std::mt19937 rng(config.bootstrap_seed);
+    std::normal_distribution<double> normal(0.0, 1.0);
+
+    std::vector<std::vector<double>> per_bin_sf(
+        bins.size()
+    );
+
+    for (std::size_t r = 0; r < n_realizations; ++r) {
+
+        std::vector<BinAccumulator> pooled(
+            bins.size()
+        );
+
+        for (std::size_t c = 0; c < data.size(); ++c) {
+
+            const auto& light_curve = data[c];
+
+            std::vector<double> perturbed(
+                light_curve.size()
+            );
+
+            for (std::size_t i = 0;
+                 i < light_curve.size();
+                 ++i) {
+
+                perturbed[i] =
+                    light_curve.value_data()[i] +
+                    light_curve.error_data()[i] * normal(rng);
+            }
+
+            const double curve_redshift =
+                redshifts != nullptr
+                    ? (*redshifts)[c]
+                    : redshift;
+
+            const agnsf::LightCurveView perturbed_view(
+                light_curve.time_data(),
+                perturbed.data(),
+                light_curve.error_data(),
+                light_curve.size()
+            );
+
+            const std::vector<BinAccumulator> acc =
+                accumulate_light_curve(
+                    perturbed_view,
+                    bins,
+                    curve_redshift
+                );
+
+            for (std::size_t j = 0; j < bins.size(); ++j) {
+                pooled[j].merge(acc[j]);
+            }
+        }
+
+        for (std::size_t j = 0; j < bins.size(); ++j) {
+            per_bin_sf[j].push_back(pooled[j].sf(method));
+        }
+    }
+
+    for (std::size_t j = 0; j < bins.size(); ++j) {
+        results[j].measurement =
+            detail::percentile_interval(
+                per_bin_sf[j],
+                0.16,
+                0.84
+            );
+    }
+}
+
+
+/**
+ * Naive within-bin statistical uncertainty of the pooled ESF:
+ * s_X / sqrt(N_pair) over the pooled pair statistics.
+ */
+void fill_within(
+    std::vector<SFBinResult>& results,
+    const std::vector<BinAccumulator>& accumulators,
+    SFMethod method
+)
+{
+    std::unique_ptr<SFWithinUncertaintyEstimator> estimator =
+        make_sf_within_uncertainty_estimator(method);
+
+    if (!estimator) {
+        return;
+    }
+
+    for (std::size_t j = 0; j < results.size(); ++j) {
+        results[j].within =
             estimator->estimate(accumulators[j]);
     }
 }
@@ -164,6 +293,7 @@ void fill_sampling(
 
             case UncertaintyMethod::Off:
             case UncertaintyMethod::Analytic:
+            case UncertaintyMethod::MonteCarlo:
                 break;
         }
     }
@@ -379,8 +509,22 @@ SFResult calculate_pooled(
         results.push_back(result);
     }
 
-    if (config.measurement != UncertaintyMethod::Off) {
+    if (config.measurement == UncertaintyMethod::Analytic) {
         fill_measurement(results, accumulators, method);
+    } else if (config.measurement == UncertaintyMethod::MonteCarlo) {
+        fill_measurement_mc(
+            results,
+            data,
+            bins,
+            method,
+            config,
+            redshift,
+            redshifts
+        );
+    }
+
+    if (config.within == UncertaintyMethod::Analytic) {
+        fill_within(results, accumulators, method);
     }
 
     if (want_sampling) {

@@ -45,10 +45,24 @@ struct SFUncertainty {
  * uncertainty component is computed. The set of valid methods depends
  * on the component and the calculator:
  *
- *   measurement (SF or ESF):
- *     - Analytic (default when enabled): within-bin standard error of
- *       the mean, propagated to SF. TODO: Monte Carlo perturbation may
- *       be added here in the future.
+ *   measurement (SF or ESF) — uncertainty propagated from the
+ *     per-observation measurement errors sigma_i (e.g. photometric
+ *     errors):
+ *     - Analytic: closed-form error propagation.
+ *       IMPLEMENTATION CONSTRAINT: the measurement contributions of different pairs
+ *       are treated as independent; pairs that share an observation
+ *       therefore have zero covariance in this approximation. A
+ *       future, more rigorous model may account for shared-observation
+ *       covariance.
+ *     - MonteCarlo: observation-level perturbation, f_i* = f_i + e_i
+ *       with e_i ~ N(0, sigma_i^2), which naturally preserves the
+ *       covariance induced by shared observations.
+ *
+ *   within (SF or ESF) — naive statistical uncertainty of the bin
+ *     mean: sample_std(X) / sqrt(N_pair) over the per-pair statistics
+ *     X, treating pairs as independent. This is a lower-bound-type
+ *     approximation (e.g. under a Gaussian process) and is NOT
+ *     measurement error.
  *
  *   sampling (ESF only, source-to-source):
  *     - Analytic: std of per-curve values / sqrt(n) (aggregated ESF).
@@ -57,6 +71,7 @@ struct SFUncertainty {
 enum class UncertaintyMethod {
     Off = 0,
     Analytic,
+    MonteCarlo,
     Jackknife,
     Bootstrap
 };
@@ -65,22 +80,27 @@ enum class UncertaintyMethod {
 /**
  * User configuration for uncertainty estimation.
  *
- * The default (all Off) reproduces the current behaviour exactly.
+ * The default (all Off) reproduces the original point-estimate
+ * behaviour exactly.
  *
- * `n_bootstrap` and `bootstrap_seed` are used only when `sampling` is
- * Bootstrap. A fixed seed makes the result reproducible.
+ * `n_bootstrap` is the number of resamples for Bootstrap sampling and
+ * the number of realizations for MonteCarlo measurement.
+ * `bootstrap_seed` fixes the RNG so results are reproducible.
  */
 struct UncertaintyConfig {
-    // Measurement uncertainty (per-bin analytic propagation).
+    // Measurement uncertainty propagated from sigma_i.
     UncertaintyMethod measurement = UncertaintyMethod::Off;
+
+    // Naive within-bin statistical uncertainty (s_X / sqrt(N_pair)).
+    UncertaintyMethod within = UncertaintyMethod::Off;
 
     // Source-to-source sampling uncertainty (ESF only).
     UncertaintyMethod sampling = UncertaintyMethod::Off;
 
-    // Number of bootstrap resamples (sampling == Bootstrap).
+    // Number of bootstrap resamples / Monte Carlo realizations.
     std::size_t n_bootstrap = 100;
 
-    // RNG seed for bootstrap resampling; 0 gives a fixed default.
+    // RNG seed for resampling / perturbation; 0 gives a fixed default.
     std::uint32_t bootstrap_seed = 0;
 };
 

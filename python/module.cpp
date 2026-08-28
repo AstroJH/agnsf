@@ -231,6 +231,10 @@ PYBIND11_MODULE(_agnsf, m)
             agnsf::esf::UncertaintyMethod::Analytic
         )
         .value(
+            "MonteCarlo",
+            agnsf::esf::UncertaintyMethod::MonteCarlo
+        )
+        .value(
             "Jackknife",
             agnsf::esf::UncertaintyMethod::Jackknife
         )
@@ -252,6 +256,7 @@ PYBIND11_MODULE(_agnsf, m)
             py::init(
                 [](
                     agnsf::esf::UncertaintyMethod measurement,
+                    agnsf::esf::UncertaintyMethod within,
                     agnsf::esf::UncertaintyMethod sampling,
                     std::size_t n_bootstrap,
                     std::uint32_t bootstrap_seed
@@ -260,6 +265,7 @@ PYBIND11_MODULE(_agnsf, m)
                     agnsf::esf::UncertaintyConfig config;
 
                     config.measurement = measurement;
+                    config.within = within;
                     config.sampling = sampling;
                     config.n_bootstrap = n_bootstrap;
                     config.bootstrap_seed = bootstrap_seed;
@@ -268,6 +274,8 @@ PYBIND11_MODULE(_agnsf, m)
                 }
             ),
             py::arg("measurement") =
+                agnsf::esf::UncertaintyMethod::Off,
+            py::arg("within") =
                 agnsf::esf::UncertaintyMethod::Off,
             py::arg("sampling") =
                 agnsf::esf::UncertaintyMethod::Off,
@@ -279,6 +287,10 @@ PYBIND11_MODULE(_agnsf, m)
         .def_readwrite(
             "measurement",
             &agnsf::esf::UncertaintyConfig::measurement
+        )
+        .def_readwrite(
+            "within",
+            &agnsf::esf::UncertaintyConfig::within
         )
         .def_readwrite(
             "sampling",
@@ -304,6 +316,8 @@ PYBIND11_MODULE(_agnsf, m)
                                 return "Off";
                             case agnsf::esf::UncertaintyMethod::Analytic:
                                 return "Analytic";
+                            case agnsf::esf::UncertaintyMethod::MonteCarlo:
+                                return "MonteCarlo";
                             case agnsf::esf::UncertaintyMethod::Jackknife:
                                 return "Jackknife";
                             case agnsf::esf::UncertaintyMethod::Bootstrap:
@@ -315,6 +329,8 @@ PYBIND11_MODULE(_agnsf, m)
                 std::ostringstream out;
                 out << "UncertaintyConfig(measurement="
                     << name(config.measurement)
+                    << ", within="
+                    << name(config.within)
                     << ", sampling="
                     << name(config.sampling)
                     << ", n_bootstrap="
@@ -347,6 +363,10 @@ PYBIND11_MODULE(_agnsf, m)
         .def_readonly(
             "measurement",
             &agnsf::esf::SFBinResult::measurement
+        )
+        .def_readonly(
+            "within",
+            &agnsf::esf::SFBinResult::within
         )
         .def_readonly(
             "sampling",

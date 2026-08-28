@@ -195,7 +195,9 @@ void print_help(std::ostream& out)
         "                             the path-list file.\n"
         "\n"
         "Uncertainty:\n"
-        "  --measurement <mode>        off (default) | analytic\n"
+        "  --measurement <mode>        off (default) | analytic | monte_carlo\n"
+        "  --within <mode>             naive within-bin statistical SE:\n"
+        "                               off (default) | analytic\n"
         "  --sampling <mode>           off (default) | analytic | jackknife\n"
         "                               | bootstrap\n"
         "  --n-bootstrap <n>           bootstrap replicates (default 100)\n"
@@ -214,7 +216,7 @@ void print_help(std::ostream& out)
         "\n"
         "Output format:\n"
         "  # lag count sf_squared sf measurement_lower measurement_upper\n"
-        "  #   sampling_lower sampling_upper\n"
+        "  #   within_lower within_upper sampling_lower sampling_upper\n"
         "\n"
         "Missing required options (--input / --output / --bins) are requested\n"
         "interactively instead of failing immediately.\n"
@@ -391,6 +393,11 @@ Options parse_args(int argc, char* argv[])
             options.uncertainty.measurement =
                 parse_uncertainty_method(
                     need_value(i, name, inline_value), "--measurement"
+                );
+        } else if (name == "--within") {
+            options.uncertainty.within =
+                parse_uncertainty_method(
+                    need_value(i, name, inline_value), "--within"
                 );
         } else if (name == "--sampling") {
             options.uncertainty.sampling =
@@ -744,6 +751,7 @@ std::string uncertainty_method_name(UncertaintyMethod method)
     switch (method) {
         case UncertaintyMethod::Off: return "off";
         case UncertaintyMethod::Analytic: return "analytic";
+        case UncertaintyMethod::MonteCarlo: return "monte_carlo";
         case UncertaintyMethod::Jackknife: return "jackknife";
         case UncertaintyMethod::Bootstrap: return "bootstrap";
     }
@@ -812,6 +820,8 @@ void print_settings(
     std::cout
         << "#   measurement uncertainty: "
         << uncertainty_method_name(options.uncertainty.measurement) << "\n"
+        << "#   within uncertainty: "
+        << uncertainty_method_name(options.uncertainty.within) << "\n"
         << "#   sampling uncertainty: "
         << uncertainty_method_name(options.uncertainty.sampling) << "\n";
 
@@ -856,6 +866,8 @@ void write_output(
     std::vector<double> sf;
     std::vector<double> measurement_lower;
     std::vector<double> measurement_upper;
+    std::vector<double> within_lower;
+    std::vector<double> within_upper;
     std::vector<double> sampling_lower;
     std::vector<double> sampling_upper;
 
@@ -865,6 +877,8 @@ void write_output(
     sf.reserve(bins.size());
     measurement_lower.reserve(bins.size());
     measurement_upper.reserve(bins.size());
+    within_lower.reserve(bins.size());
+    within_upper.reserve(bins.size());
     sampling_lower.reserve(bins.size());
     sampling_upper.reserve(bins.size());
 
@@ -878,6 +892,8 @@ void write_output(
         sf.push_back(bin.sf);
         measurement_lower.push_back(bin.measurement.lower);
         measurement_upper.push_back(bin.measurement.upper);
+        within_lower.push_back(bin.within.lower);
+        within_upper.push_back(bin.within.upper);
         sampling_lower.push_back(bin.sampling.lower);
         sampling_upper.push_back(bin.sampling.upper);
     }
@@ -891,6 +907,8 @@ void write_output(
             "sf",
             "measurement_lower",
             "measurement_upper",
+            "within_lower",
+            "within_upper",
             "sampling_lower",
             "sampling_upper"
         },
@@ -901,6 +919,8 @@ void write_output(
             sf,
             measurement_lower,
             measurement_upper,
+            within_lower,
+            within_upper,
             sampling_lower,
             sampling_upper
         }

@@ -10,29 +10,30 @@ namespace agnsf {
 namespace esf {
 
 /**
- * Interface for estimating the measurement uncertainty of a single-bin SF.
+ * Estimates the measurement uncertainty of a single-bin SF.
  *
- * Each SFMethod (or family of closely related methods) can provide its own
- * uncertainty estimator. The propagation formula is implemented by the
- * estimator rather than by the caller, allowing different SF methods to use
- * different uncertainty models.
- * 
- * Analytic propagation is the current implementation;
- * TODO: Monte Carlo / bootstrap based estimators can be
- * added behind the same interface later.
+ * "Measurement uncertainty" here means the uncertainty propagated from
+ * the per-observation measurement errors sigma_i (e.g. photometric
+ * errors) into the SF estimate; it depends explicitly on sigma_i.
+ *
+ * IMPLEMENTATION CONSTRAINT: the current closed-form propagation
+ * treats the measurement contributions of different pairs as
+ * independent (pairs that share an observation have zero covariance in
+ * this approximation). A future, more rigorous model may account for
+ * shared-observation covariance.
+ *
+ * Each SFMethod can provide its own propagation rule.
  */
 class SFMeasurementUncertaintyEstimator {
 public:
     virtual ~SFMeasurementUncertaintyEstimator() = default;
 
     /**
-     * Estimate the measurement uncertainty of SF for one lag bin.
+     * Estimate the measurement uncertainty of sf for one lag bin from
+     * the bin's accumulated pair statistics.
      *
-     * @param stats Accumulated pair-level statistics for the bin.
-     *
-     * @return An uncertainty interval for SF. Returns an unestimated
-     *         (NaN) interval if the bin contains fewer than two pairs
-     *         or if the corresponding SF is not finite.
+     * Returns an unestimated (NaN) interval when sf is not finite
+     * (e.g. noise-dominated bins with negative SF^2).
      */
     virtual SFUncertainty estimate(
         const BinAccumulator& stats
@@ -41,20 +42,44 @@ public:
 
 
 /**
- * Factory function that creates the measurement-uncertainty estimator
- * corresponding to the specified SFMethod.
+ * Estimates the naive within-bin statistical uncertainty of a
+ * single-bin SF.
  *
- * The returned estimator encapsulates the uncertainty-propagation rule
- * for that SF method. Closely related SF methods may share the same
- * estimator implementation.
+ * This is the standard error of the per-pair mean under the
+ * pair-independence approximation:
  *
- * If no estimator is currently implemented for a given SFMethod, the
- * factory returns an estimator that reports the uncertainty as
- * unestimated (NaN), allowing new SF methods to be added without
- * immediately requiring an uncertainty implementation.
+ *   SE = sample_std(X) / sqrt(N_pair)
+ *
+ * where X is the per-pair statistic. Under a Gaussian process this is
+ * a lower-bound-type approximation. It is NOT measurement error.
+ */
+class SFWithinUncertaintyEstimator {
+public:
+    virtual ~SFWithinUncertaintyEstimator() = default;
+
+    virtual SFUncertainty estimate(
+        const BinAccumulator& stats
+    ) const = 0;
+};
+
+
+/**
+ * Create the measurement-uncertainty estimator (sigma_i propagation)
+ * for an SFMethod. Returns nullptr for SFMethods without an
+ * estimator, which callers treat as unestimated (NaN).
  */
 std::unique_ptr<SFMeasurementUncertaintyEstimator>
 make_sf_measurement_uncertainty_estimator(
+    SFMethod method
+);
+
+
+/**
+ * Create the naive within-bin statistical-uncertainty estimator for
+ * an SFMethod. Returns nullptr for SFMethods without an estimator.
+ */
+std::unique_ptr<SFWithinUncertaintyEstimator>
+make_sf_within_uncertainty_estimator(
     SFMethod method
 );
 

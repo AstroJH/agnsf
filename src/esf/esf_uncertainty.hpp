@@ -66,6 +66,18 @@ SFUncertainty bootstrap_interval(
 
 
 /**
+ * Percentile interval [p_lo, p_hi] of the given finite values
+ * (nearest-rank). Returns an unestimated interval when fewer than two
+ * finite values are available.
+ */
+SFUncertainty percentile_interval(
+    const std::vector<double>& values,
+    double p_lo,
+    double p_hi
+);
+
+
+/**
  * Map an interval from the working scale (sf or sf^2) onto sf.
  *
  * When `sqrt_transform` is true each bound is propagated through

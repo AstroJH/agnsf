@@ -532,6 +532,139 @@ void test_pooled_invalid_config()
     }
 }
 
+
+void test_within_propagation_mean_sf()
+{
+    /*
+     * The naive within-bin statistical uncertainty of each curve is
+     * combined in quadrature across independent curves (same rule as
+     * measurement propagation).
+     */
+    std::vector<agnsf::LightCurve> data = {
+        agnsf::LightCurve(
+            {0.0, 1.0, 2.0, 3.0},
+            {0.0, 1.0, 1.0, 2.0},
+            {0.2, 0.2, 0.2, 0.2}
+        ),
+        agnsf::LightCurve(
+            {0.0, 1.0, 2.0, 3.0},
+            {0.0, 2.0, 1.0, 3.0},
+            {0.2, 0.2, 0.2, 0.2}
+        )
+    };
+
+    const agnsf::esf::LagBins bins({0.0, 1.5, 3.0});
+
+    agnsf::esf::UncertaintyConfig per_curve_config;
+    per_curve_config.within = agnsf::esf::UncertaintyMethod::Analytic;
+
+    agnsf::esf::SFCalculator sf_calculator;
+
+    std::vector<double> sf_values;
+    std::vector<double> half_widths;
+
+    for (const auto& curve : data) {
+
+        const agnsf::esf::SFResult r =
+            sf_calculator.calculate(
+                curve,
+                bins,
+                agnsf::esf::SFMethod::SecondOrder,
+                per_curve_config
+            );
+
+        const auto& within = r.bin(0).within;
+
+        assert(within.estimated());
+
+        sf_values.push_back(r.bin(0).sf);
+
+        half_widths.push_back(
+            (within.upper - within.lower) / 2.0
+        );
+    }
+
+    const double n = static_cast<double>(sf_values.size());
+    const double esf = (
+        sf_values[0] + sf_values[1]
+    ) / n;
+
+    double sum_squared_sigma = 0.0;
+
+    for (const double half_width : half_widths) {
+        sum_squared_sigma += half_width * half_width;
+    }
+
+    const double sigma =
+        std::sqrt(sum_squared_sigma) / n;
+
+    agnsf::esf::UncertaintyConfig config;
+    config.within = agnsf::esf::UncertaintyMethod::Analytic;
+
+    agnsf::esf::SFEnsembleCalculator calculator;
+
+    const agnsf::esf::SFResult result =
+        calculator.calculate(
+            data,
+            bins,
+            agnsf::esf::SFMethod::SecondOrder,
+            agnsf::esf::SFEnsembleCalculator::Method::MeanSf,
+            config
+        );
+
+    const auto& within = result.bin(0).within;
+
+    assert(within.estimated());
+    check_close(within.lower, esf - sigma);
+    check_close(within.upper, esf + sigma);
+}
+
+
+void test_pooled_measurement_monte_carlo()
+{
+    std::vector<agnsf::LightCurve> data = {
+        agnsf::LightCurve({0.0, 1.0}, {0.0, 1.0}, {0.1, 0.1}),
+        agnsf::LightCurve({0.0, 1.0}, {0.0, 2.0}, {0.1, 0.1})
+    };
+
+    const agnsf::esf::LagBins bins({0.0, 1.5});
+
+    agnsf::esf::UncertaintyConfig config;
+    config.measurement = agnsf::esf::UncertaintyMethod::MonteCarlo;
+    config.n_bootstrap = 400;
+    config.bootstrap_seed = 7;
+
+    agnsf::esf::PooledESFCalculator calculator;
+
+    const agnsf::esf::SFResult first =
+        calculator.calculate(
+            data,
+            bins,
+            agnsf::esf::SFMethod::SecondOrder,
+            config
+        );
+
+    const agnsf::esf::SFResult second =
+        calculator.calculate(
+            data,
+            bins,
+            agnsf::esf::SFMethod::SecondOrder,
+            config
+        );
+
+    check_close(first.bin(0).measurement.lower,
+                second.bin(0).measurement.lower);
+    check_close(first.bin(0).measurement.upper,
+                second.bin(0).measurement.upper);
+
+    const auto& bin = first.bin(0);
+
+    assert(bin.measurement.estimated());
+    assert(std::isfinite(bin.measurement.lower));
+    assert(std::isfinite(bin.measurement.upper));
+    assert(bin.measurement.lower <= bin.measurement.upper);
+}
+
 } // namespace
 
 
@@ -545,6 +678,8 @@ int main()
     test_pooled_jackknife();
     test_pooled_bootstrap_reproducible();
     test_pooled_invalid_config();
+    test_within_propagation_mean_sf();
+    test_pooled_measurement_monte_carlo();
 
     return 0;
 }
