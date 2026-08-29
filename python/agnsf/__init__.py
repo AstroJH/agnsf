@@ -20,6 +20,7 @@ from .io import (
     write_table,
 )
 from .results import SFArrays, to_arrays
+from . import timedelay
 
 __all__ = [
     # types
@@ -49,4 +50,7 @@ __all__ = [
     # results
     "SFArrays",
     "to_arrays",
+    
+    # time delay
+    "timedelay",
 ]

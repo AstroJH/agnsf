@@ -111,6 +111,33 @@ SFResult pooled_sf_from_files(
 }
 
 
+SFResult pooled_sf_from_files(
+    const std::vector<std::string>& paths,
+    const std::vector<double>& redshifts,
+    const LagBins& bins,
+    SFMethod method,
+    const agnsf::io::ColumnNames& columns,
+    const UncertaintyConfig& config
+)
+{
+    if (redshifts.size() != paths.size()) {
+        throw std::invalid_argument(
+            "redshifts size must match the number of light curves"
+        );
+    }
+
+    PooledESFCalculator calculator;
+
+    return calculator.calculate(
+        load_curves(paths, columns),
+        bins,
+        method,
+        config,
+        redshifts
+    );
+}
+
+
 SFResult pooled_sf_from_path_list(
     const std::string& path_list_file,
     const LagBins& bins,
@@ -156,6 +183,35 @@ SFResult ensemble_sf_from_files(
         method,
         config,
         redshift
+    );
+}
+
+
+SFResult ensemble_sf_from_files(
+    const std::vector<std::string>& paths,
+    const std::vector<double>& redshifts,
+    const LagBins& bins,
+    SFMethod sf_method,
+    SFEnsembleCalculator::Method method,
+    const agnsf::io::ColumnNames& columns,
+    const UncertaintyConfig& config
+)
+{
+    if (redshifts.size() != paths.size()) {
+        throw std::invalid_argument(
+            "redshifts size must match the number of light curves"
+        );
+    }
+
+    SFEnsembleCalculator calculator;
+
+    return calculator.calculate(
+        load_curves(paths, columns),
+        bins,
+        sf_method,
+        method,
+        config,
+        redshifts
     );
 }
 

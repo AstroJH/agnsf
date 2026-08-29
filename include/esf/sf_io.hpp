@@ -45,6 +45,22 @@ SFResult pooled_sf_from_files(
 
 
 /**
+ * Read several light curves from files and calculate the pooled ESF,
+ * applying a different redshift to each light curve.
+ *
+ * @throws std::invalid_argument if redshifts.size() != paths.size().
+ */
+SFResult pooled_sf_from_files(
+    const std::vector<std::string>& paths,
+    const std::vector<double>& redshifts,
+    const LagBins& bins,
+    SFMethod method = SFMethod::SecondOrder,
+    const agnsf::io::ColumnNames& columns = {},
+    const UncertaintyConfig& config = {}
+);
+
+
+/**
  * Read a list of light-curve paths from a text file and calculate
  * the pooled ESF.
  *
@@ -74,6 +90,24 @@ SFResult ensemble_sf_from_files(
     const agnsf::io::ColumnNames& columns = {},
     const UncertaintyConfig& config = {},
     double redshift = 0.0
+);
+
+
+/**
+ * Read several light curves from files and calculate the aggregated
+ * ESF, applying a different redshift to each light curve.
+ *
+ * @throws std::invalid_argument if redshifts.size() != paths.size().
+ */
+SFResult ensemble_sf_from_files(
+    const std::vector<std::string>& paths,
+    const std::vector<double>& redshifts,
+    const LagBins& bins,
+    SFMethod sf_method = SFMethod::SecondOrder,
+    SFEnsembleCalculator::Method method =
+        SFEnsembleCalculator::Method::SqrtMeanSquared,
+    const agnsf::io::ColumnNames& columns = {},
+    const UncertaintyConfig& config = {}
 );
 
 

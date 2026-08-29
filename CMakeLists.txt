@@ -157,6 +157,26 @@ target_include_directories(agnsf_core
 
 
 # ----------------------------------------------------------------------
+# Time-delay Library (agnsf::timedelay; depends on agnsf_core only)
+# ----------------------------------------------------------------------
+
+add_library(agnsf_timedelay
+    src/timedelay/cross_correlation.cpp
+    src/timedelay/fr_rss.cpp
+)
+
+target_include_directories(agnsf_timedelay
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(agnsf_timedelay
+    PRIVATE
+        agnsf_core
+)
+
+
+# ----------------------------------------------------------------------
 # IO Library (independent of esf; reusable by future modules)
 # ----------------------------------------------------------------------
 
@@ -229,11 +249,18 @@ target_link_libraries(agnsf_esf
 
 pybind11_add_module(_agnsf
     python/module.cpp
+    python/bindings/core.cpp
+    python/bindings/esf.cpp
+    python/bindings/io.cpp
+    python/bindings/sf.cpp
+    python/bindings/timedelay.cpp
+    python/bindings/uncertainty.cpp
 )
 
 target_link_libraries(_agnsf
     PRIVATE
         agnsf_esf
+        agnsf_timedelay
 )
 
 
@@ -457,6 +484,21 @@ target_link_libraries(test_redshift
 add_test(
     NAME redshift
     COMMAND test_redshift
+)
+
+
+add_executable(test_cross_correlation
+    tests/test_cross_correlation.cpp
+)
+
+target_link_libraries(test_cross_correlation
+    PRIVATE
+        agnsf_timedelay
+)
+
+add_test(
+    NAME cross_correlation
+    COMMAND test_cross_correlation
 )
 
 

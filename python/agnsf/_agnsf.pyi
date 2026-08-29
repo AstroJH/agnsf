@@ -241,7 +241,7 @@ def pooled_sf_from_files(
     value: str = "value",
     error: str = "error",
     uncertainty: UncertaintyConfig = UncertaintyConfig(),
-    redshift: float = 0.0,
+    redshift: float | Sequence[float] = 0.0,
 ) -> SFResult: ...
 
 
@@ -265,7 +265,7 @@ def ensemble_sf_from_files(
     value: str = "value",
     error: str = "error",
     uncertainty: UncertaintyConfig = UncertaintyConfig(),
-    redshift: float = 0.0,
+    redshift: float | Sequence[float] = 0.0,
 ) -> SFResult: ...
 
 
@@ -286,3 +286,61 @@ def write_sf_result(
     bins: LagBins,
     result: SFResult,
 ) -> None: ...
+
+
+class CrossCorrelationMethod:
+    Dcf: CrossCorrelationMethod
+    Iccf: CrossCorrelationMethod
+
+
+class LagEstimate:
+    Peak: LagEstimate
+    Centroid: LagEstimate
+
+
+class LagResult:
+    lag_peak: float
+    lag_centroid: float
+    peak_value: float
+    tau: list[float]
+    ccf: list[float]
+    count: list[int]
+
+
+def cross_correlate(
+    time1: Sequence[float],
+    value1: Sequence[float],
+    error1: Sequence[float],
+    time2: Sequence[float],
+    value2: Sequence[float],
+    error2: Sequence[float],
+    grid_min: float,
+    grid_max: float,
+    grid_step: float,
+    method: CrossCorrelationMethod = CrossCorrelationMethod.Dcf,
+    dcf_bin_width: float = 1.0,
+    centroid_threshold: float = 0.8,
+    min_overlap: int = 3,
+) -> LagResult: ...
+
+
+def lag_uncertainty(
+    time1: Sequence[float],
+    value1: Sequence[float],
+    error1: Sequence[float],
+    time2: Sequence[float],
+    value2: Sequence[float],
+    error2: Sequence[float],
+    grid_min: float,
+    grid_max: float,
+    grid_step: float,
+    estimate: LagEstimate = LagEstimate.Peak,
+    method: CrossCorrelationMethod = CrossCorrelationMethod.Dcf,
+    dcf_bin_width: float = 1.0,
+    centroid_threshold: float = 0.8,
+    min_overlap: int = 3,
+    n_realizations: int = 1000,
+    seed: int = 0,
+    flux_randomization: bool = True,
+    random_subset: bool = True,
+) -> Uncertainty: ...

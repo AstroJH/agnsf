@@ -240,6 +240,132 @@ void test_ensemble_from_files()
 }
 
 
+void test_pooled_from_files_per_curve_redshift()
+{
+    const fs::path csv1 = kTempDir / "lc1.csv";
+    const fs::path csv2 = kTempDir / "lc2.csv";
+
+    const agnsf::esf::LagBins bins({0.0, 1.5, 2.5, 4.0});
+
+    const std::vector<double> redshifts = {0.5, 0.0};
+
+    const agnsf::esf::SFResult from_files =
+        agnsf::esf::pooled_sf_from_files(
+            {
+                (kTempDir / "lc1.csv").string(),
+                (kTempDir / "lc2.csv").string()
+            },
+            redshifts,
+            bins
+        );
+
+    agnsf::esf::PooledESFCalculator calculator;
+
+    const agnsf::esf::SFResult direct =
+        calculator.calculate(
+            std::vector<agnsf::LightCurve>{
+                make_lc1(),
+                make_lc2()
+            },
+            bins,
+            agnsf::esf::SFMethod::SecondOrder,
+            {},
+            redshifts
+        );
+
+    assert(from_files.size() == direct.size());
+
+    for (std::size_t i = 0; i < direct.size(); ++i) {
+        assert(from_files.bin(i).count == direct.bin(i).count);
+        check_close(
+            from_files.bin(i).sf_squared,
+            direct.bin(i).sf_squared
+        );
+    }
+
+    // The per-curve z must change the result: with z1 = 0.5 the
+    // lags of lc1 are compressed, so its pairs shift to lower bins.
+    const agnsf::esf::SFResult no_z =
+        agnsf::esf::pooled_sf_from_files(
+            {
+                (kTempDir / "lc1.csv").string(),
+                (kTempDir / "lc2.csv").string()
+            },
+            bins
+        );
+
+    assert(from_files.bin(0).count != no_z.bin(0).count ||
+           !close(
+               from_files.bin(0).sf_squared,
+               no_z.bin(0).sf_squared
+           ));
+
+    bool threw = false;
+
+    try {
+        agnsf::esf::pooled_sf_from_files(
+            {
+                (kTempDir / "lc1.csv").string(),
+                (kTempDir / "lc2.csv").string()
+            },
+            std::vector<double>{0.5},  // wrong size
+            bins
+        );
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+
+    assert(threw);
+}
+
+
+void test_ensemble_from_files_per_curve_redshift()
+{
+    const agnsf::esf::LagBins bins({0.0, 1.5, 2.5, 4.0});
+
+    const std::vector<double> redshifts = {0.0, 0.5};
+
+    const agnsf::esf::SFResult from_files =
+        agnsf::esf::ensemble_sf_from_files(
+            {
+                (kTempDir / "lc1.csv").string(),
+                (kTempDir / "lc2.csv").string()
+            },
+            redshifts,
+            bins
+        );
+
+    agnsf::esf::SFEnsembleCalculator calculator;
+
+    const agnsf::esf::SFResult direct =
+        calculator.calculate(
+            std::vector<agnsf::LightCurve>{
+                make_lc1(),
+                make_lc2()
+            },
+            bins,
+            agnsf::esf::SFMethod::SecondOrder,
+            agnsf::esf::SFEnsembleCalculator::Method::SqrtMeanSquared,
+            {},
+            redshifts
+        );
+
+    assert(from_files.size() == direct.size());
+
+    for (std::size_t i = 0; i < direct.size(); ++i) {
+        assert(from_files.bin(i).count == direct.bin(i).count);
+        check_close(
+            from_files.bin(i).sf_squared,
+            direct.bin(i).sf_squared
+        );
+        check_close(
+            from_files.bin(i).sf,
+            direct.bin(i).sf
+        );
+    }
+}
+
+
 void test_write_sf_result()
 {
     const agnsf::esf::LagBins bins({0.0, 1.5, 2.5, 4.0});
@@ -314,6 +440,8 @@ int main()
     test_pooled_from_files();
     test_pooled_from_path_list();
     test_ensemble_from_files();
+    test_pooled_from_files_per_curve_redshift();
+    test_ensemble_from_files_per_curve_redshift();
     test_write_sf_result();
 
     fs::remove_all(kTempDir);

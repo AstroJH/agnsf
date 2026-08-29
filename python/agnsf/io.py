@@ -10,7 +10,7 @@ The source-based helpers accept a flexible ``source`` argument:
 
 from __future__ import annotations
 
-from typing import Any, Sequence, Union
+from typing import Any, Sequence, Union, Literal
 
 from ._agnsf import (
     EnsembleMethod,
@@ -19,8 +19,13 @@ from ._agnsf import (
     SFMethod,
     SFResult,
     UncertaintyConfig,
+    ensemble_sf_from_files as _ensemble_sf_from_files,
+    ensemble_sf_from_path_list as _ensemble_sf_from_path_list,
+    pooled_sf_from_files as _pooled_sf_from_files,
+    pooled_sf_from_path_list as _pooled_sf_from_path_list,
     read_light_curve as _read_light_curve,
     read_path_list_with_redshift as _read_path_list_with_redshift,
+    sf_from_file as _sf_from_file,
     write_sf_result as _write_sf_result,
     write_table as _write_table,
 )
@@ -29,8 +34,7 @@ from .analysis import (
     _coerce_aggregation,
     _coerce_sf_method,
     _coerce_uncertainty,
-    ensemble_sf,
-    pooled_sf,
+    _is_scalar_redshift,
 )
 
 __all__ = [
@@ -125,19 +129,28 @@ def sf_file(
     value: str = "value",
     error: str = "error",
 ) -> SFResult:
-    """Structure function of one light-curve file (CSV or FITS)."""
-    curve = read_light_curve(path, time=time, value=value, error=error)
+    """Structure function of one light-curve file (CSV or FITS).
 
-    from .analysis import sf
+    The file is read by the native layer; the ``time`` / ``value`` /
+    ``error`` arguments select the column names.
+    """
+    if not _is_scalar_redshift(redshift):
+        raise TypeError(
+            "redshift for a single light curve must be a number, "
+            f"got {redshift!r}"
+        )
 
-    return sf(
-        curve.time,
-        curve.value,
-        curve.error,
+    _check_redshift(float(redshift))
+
+    return _sf_from_file(
+        path,
         bins,
-        method=method,
-        uncertainty=uncertainty,
-        redshift=redshift,
+        method=_coerce_sf_method(method),
+        time=time,
+        value=value,
+        error=error,
+        uncertainty=_coerce_uncertainty(uncertainty),
+        redshift=float(redshift),
     )
 
 
@@ -145,7 +158,7 @@ def esf_from(
     source: Source,
     bins: LagBins,
     *,
-    kind: str = "pooled",
+    kind: Literal["pooled", "aggregated"] = "pooled",
     method: SFMethod | str = SFMethod.SecondOrder,
     aggregation: EnsembleMethod | str = EnsembleMethod.SqrtMeanSquared,
     uncertainty: UncertaintyConfig | str | bool | dict[str, Any] | None = None,
@@ -169,48 +182,74 @@ def esf_from(
         Aggregation for ``kind="aggregated"``:
         ``"sqrt_mean_squared"`` (default) or ``"mean_sf"``.
     """
-    entries = _coerce_source_entries(source)
-
-    curves = [
-        read_light_curve(path, time=time, value=value, error=error)
-        for path, _redshift in entries
-    ]
-
-    # Per-source redshifts are passed to the native kernels, which
-    # convert lags to the rest frame per pair (no time-array copies).
-    redshifts = [redshift for _path, redshift in entries]
-
-    times = [curve.time for curve in curves]
-    values = [curve.value for curve in curves]
-    errors = [curve.error for curve in curves]
-
     kind_key = str(kind).strip().lower()
 
-    if kind_key == "pooled":
-        return pooled_sf(
-            times,
-            values,
-            errors,
-            bins,
-            method=_coerce_sf_method(method),
-            uncertainty=_coerce_uncertainty(uncertainty),
-            redshift=redshifts,
+    if kind_key not in ("pooled", "aggregated"):
+        raise ValueError(
+            f"kind must be 'pooled' or 'aggregated', got {kind!r}"
         )
 
-    if kind_key == "aggregated":
-        return ensemble_sf(
-            times,
-            values,
-            errors,
+    uncertainty_config = _coerce_uncertainty(uncertainty)
+
+    if isinstance(source, str):
+        # Path-list file: the native layer reads the paths and the
+        # optional per-curve redshift column.
+        if kind_key == "pooled":
+            return _pooled_sf_from_path_list(
+                source,
+                bins,
+                method=_coerce_sf_method(method),
+                time=time,
+                value=value,
+                error=error,
+                uncertainty=uncertainty_config,
+            )
+
+        return _ensemble_sf_from_path_list(
+            source,
             bins,
             method=_coerce_aggregation(aggregation),
             sf_method=_coerce_sf_method(method),
-            uncertainty=_coerce_uncertainty(uncertainty),
-            redshift=redshifts,
+            time=time,
+            value=value,
+            error=error,
+            uncertainty=uncertainty_config,
         )
 
-    raise ValueError(
-        f"kind must be 'pooled' or 'aggregated', got {kind!r}"
+    # A list of paths and/or (path, redshift) pairs. The native layer
+    # reads the files; per-curve redshifts are passed as metadata.
+    entries = _coerce_source_entries(source)
+
+    paths = [path for path, _redshift in entries]
+    redshifts = [redshift for _path, redshift in entries]
+
+    # Keep the z = 0 fast path: a scalar applies to every light curve.
+    redshift_arg: float | list[float] = (
+        0.0 if all(z == 0.0 for z in redshifts) else redshifts
+    )
+
+    if kind_key == "pooled":
+        return _pooled_sf_from_files(
+            paths,
+            bins,
+            method=_coerce_sf_method(method),
+            time=time,
+            value=value,
+            error=error,
+            uncertainty=uncertainty_config,
+            redshift=redshift_arg,
+        )
+
+    return _ensemble_sf_from_files(
+        paths,
+        bins,
+        method=_coerce_aggregation(aggregation),
+        sf_method=_coerce_sf_method(method),
+        time=time,
+        value=value,
+        error=error,
+        uncertainty=uncertainty_config,
+        redshift=redshift_arg,
     )
 
 
