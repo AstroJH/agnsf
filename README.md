@@ -205,6 +205,48 @@ copying the time arrays), and is also available in the CLI
 (`--redshift <z>`) and in path-list files (per-curve, optional second
 column; a missing column means `z = 0`).
 
+## Time-delay Analysis
+
+AGNSF provides a lightweight interface for measuring time delays between two
+astronomical light curves. It currently supports the **discrete correlation
+function (DCF)** and **interpolated cross-correlation function (ICCF)**, with
+either peak or centroid lag estimates.
+
+The main interface is `agnsf.timedelay.lag()`:
+
+```python
+import agnsf
+
+result = agnsf.timedelay.lag(
+    time1, value1, error1,
+    time2, value2, error2,
+    lag_range=(-50, 50),
+    step=1.0,
+    method="dcf",
+    estimate="centroid",
+    uncertainty="fr_rss",
+    n_realizations=500,
+    seed=0,
+)
+```
+
+Here, the first light curve is treated as the continuum (driving) light curve
+and the second as the response light curve. A positive lag means that the
+response lags the continuum.
+
+`method` can be `"dcf"` or `"iccf"`, and `estimate` can be `"peak"` or
+`"centroid"`. The centroid is calculated from the CCF points above a specified
+fraction of the maximum correlation coefficient.
+
+FR/RSS uncertainty estimation is available through
+`uncertainty="fr_rss"`. The resulting interval is reported as the 16th and
+84th percentiles of the lag distribution from the Monte Carlo realizations.
+Set `uncertainty=None` to disable uncertainty estimation.
+
+The returned `LagResult` contains the selected lag estimate, both peak and
+centroid estimates, the FR/RSS interval when requested, and the full
+cross-correlation curve (`tau`, `ccf`, and `count`).
+
 ## Command-line Interface (CLI)
 
 The AGNSF command-line program computes the structure function of a
