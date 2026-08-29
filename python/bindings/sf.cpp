@@ -2,8 +2,13 @@
 #include <esf/sf_method.hpp>
 #include <esf/sf_calculator.hpp>
 
+using namespace agnsf::python;
+
 void bind_sf(py::module_& m)
 {
+    // ------------------------------------------------------------------
+    // SFMethod
+    // ------------------------------------------------------------------
     py::enum_<agnsf::esf::SFMethod>(
             m,
             "SFMethod"
@@ -99,6 +104,14 @@ void bind_sf(py::module_& m)
                 (dt_rest = dt_obs / (1 + z)).
             )pbdoc"
         );
+    
+    // ------------------------------------------------------------------
+    // Inspect NumPy inputs
+    //
+    // This function is intentionally separate from sf().
+    // It accepts arbitrary Python objects and reports whether pybind11
+    // would need to construct a new float64 C-contiguous array.
+    // ------------------------------------------------------------------
     m.def(
             "inspect",
             [](

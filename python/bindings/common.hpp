@@ -15,16 +15,31 @@
 
 namespace py = pybind11;
 
-namespace {
+namespace agnsf::python {
 
 using Float64Array =
     py::array_t<double, py::array::c_style>;
 
+// Ensure that a Python object can be represented as a C-contiguous
+// float64 NumPy array.
+inline Float64Array ensure_float64_array(
+    const py::handle& object
+)
+{
+    auto array = Float64Array::ensure(object);
 
-// ----------------------------------------------------------------------
-// Validate three input arrays and construct a zero-copy LightCurveView.
-// ----------------------------------------------------------------------
+    if (!array) {
+        throw py::type_error(
+            "input must be convertible to "
+            "a C-contiguous float64 array"
+        );
+    }
 
+    return array;
+}
+
+
+// Construct an owning LightCurve by copying the input arrays.
 inline agnsf::LightCurve make_light_curve(
     const Float64Array& time,
     const Float64Array& value,
@@ -38,14 +53,17 @@ inline agnsf::LightCurve make_light_curve(
     );
 }
 
-
+// Construct a zero-copy LightCurveView.
+//
+// LightCurveView does not own the underlying data; the input arrays
+// must remain alive for the lifetime of the view.
 inline agnsf::LightCurveView make_light_curve_view(
     const Float64Array& time,
     const Float64Array& value,
     const Float64Array& error
 )
 {
-    const auto time_buffer = time.request();
+    const auto time_buffer  = time.request();
     const auto value_buffer = value.request();
     const auto error_buffer = error.request();
 
@@ -83,7 +101,16 @@ inline agnsf::LightCurveView make_light_curve_view(
     );
 }
 
-// ----------------------------------------------------------------------
+struct LightCurveBatch {
+    std::vector<agnsf::LightCurveView> views;
+    
+    // Keep converted NumPy arrays alive for the lifetime of the views.
+    std::vector<Float64Array> owned_times;
+    std::vector<Float64Array> owned_values;
+    std::vector<Float64Array> owned_errors;
+};
+
+
 // Convert a list of light curves into zero-copy LightCurveViews.
 //
 // LightCurveView only stores raw pointers.  If ensure() must build a
@@ -91,17 +118,6 @@ inline agnsf::LightCurveView make_light_curve_view(
 // array, or a non-contiguous slice), that temporary ndarray would be
 // destroyed at the end of the loop iteration.  The owned_* vectors
 // keep every array alive until the caller finishes using the views.
-// ----------------------------------------------------------------------
-
-struct LightCurveBatch {
-    std::vector<agnsf::LightCurveView> views;
-
-    std::vector<py::array_t<double, py::array::c_style>> owned_times;
-    std::vector<py::array_t<double, py::array::c_style>> owned_values;
-    std::vector<py::array_t<double, py::array::c_style>> owned_errors;
-};
-
-
 inline LightCurveBatch make_light_curve_batch(
     const py::list& times,
     const py::list& values,
@@ -130,20 +146,9 @@ inline LightCurveBatch make_light_curve_batch(
         // Keep the resulting arrays in owned_* so that their buffers remain valid
         // until calculate() finishes.
 
-        auto time  = py::array_t<double, py::array::c_style>::ensure(times[i]);
-        auto value = py::array_t<double, py::array::c_style>::ensure(values[i]);
-        auto error = py::array_t<double, py::array::c_style>::ensure(errors[i]);
-
-        batch.owned_times.emplace_back(time);
-        batch.owned_values.emplace_back(value);
-        batch.owned_errors.emplace_back(error);
-
-        if (!time || !value || !error) {
-            throw py::type_error(
-                "all light curves must be convertible "
-                "to C-contiguous float64 arrays"
-            );
-        }
+        auto time  = ensure_float64_array(times[i]);
+        auto value = ensure_float64_array(values[i]);
+        auto error = ensure_float64_array(errors[i]);
 
         auto time_buffer  = time.request();
         auto value_buffer = value.request();
@@ -168,6 +173,10 @@ inline LightCurveBatch make_light_curve_batch(
             );
         }
 
+        batch.owned_times.emplace_back(time);
+        batch.owned_values.emplace_back(value);
+        batch.owned_errors.emplace_back(error);
+
         batch.views.emplace_back(
             static_cast<const double*>(time_buffer.ptr),
             static_cast<const double*>(value_buffer.ptr),
@@ -179,7 +188,7 @@ inline LightCurveBatch make_light_curve_batch(
     return batch;
 }
 
-} // namespace
+} // namespace agnsf::python
 
 
 // Registration entry points for each binding group.

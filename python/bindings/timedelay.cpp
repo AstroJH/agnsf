@@ -2,6 +2,13 @@
 #include <timedelay/cross_correlation.hpp>
 #include <timedelay/fr_rss.hpp>
 
+using namespace agnsf::python;
+
+
+// ------------------------------------------------------------------
+// Time-delay (cross-correlation lag analysis)
+// ------------------------------------------------------------------
+
 void bind_timedelay(py::module_& m)
 {
     py::enum_<agnsf::timedelay::CrossCorrelationMethod>(
@@ -195,13 +202,4 @@ void bind_timedelay(py::module_& m)
     FR/RSS Monte Carlo uncertainty of a lag estimate (Peterson et al. 1998).
             )pbdoc"
         );
-    
-    
-        // ------------------------------------------------------------------
-        // Inspect NumPy inputs
-        //
-        // This function is intentionally separate from sf().
-        // It accepts arbitrary Python objects and reports whether pybind11
-        // would need to construct a new float64 C-contiguous array.
-        // ------------------------------------------------------------------
 }
