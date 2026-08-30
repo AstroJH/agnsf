@@ -11,22 +11,24 @@
 ## Planned Features
 
 - [x] Structure function (SF) calculation
-
 - [x] Ensemble structure function
   - [x] Pooled structure function
   - [x] Aggregated structure function
-
-- [ ] Monte Carlo uncertainty estimation
-
+- [x] Uncertainty estimation *(currently for SF/ESF only)*
+  - [x] Measurement uncertainty
+  - [x] Sampling uncertainty
+  - [x] Bootstrap and jackknife methods
+- [x] Time-delay analysis
+  - [x] DCF and ICCF
+  - [x] Peak and centroid lag estimates
+  - [x] FR/RSS uncertainty estimation
+  - [ ] 🚧 Transfer-function fitting *(actively under development)*
+- [ ] Variability amplitude estimation
+- [ ] Power spectral density (PSD) analysis *(still a long way off)*
 - [x] Python interface through NumPy and pybind11
-
 - [x] Efficient NumPy interface with zero-copy access for compatible arrays;
   automatic conversion for other inputs
-
-- [x] Command-line interface for calculating structure functions directly from
-  light-curve files and writing results to FITS or CSV
-
-- [x] Python interface supporting both in-memory light curves and file paths
+- [x] CLI for calculating SF/ESF directly from light-curve files and writing results to FITS or CSV
 
 ## Installation and Build
 ### Build CLI
