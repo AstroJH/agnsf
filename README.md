@@ -22,7 +22,7 @@
   - [x] DCF and ICCF
   - [x] Peak and centroid lag estimates
   - [x] FR/RSS uncertainty estimation
-  - [ ] 🚧 Transfer-function fitting *(actively under development)*
+  - [x] Transfer-function fitting
 - [ ] Variability amplitude estimation
 - [ ] Power spectral density (PSD) analysis *(still a long way off)*
 - [x] Python interface through NumPy and pybind11

@@ -288,6 +288,43 @@ def write_sf_result(
 ) -> None: ...
 
 
+class TransferFunctionShape:
+    Gaussian: TransferFunctionShape
+    TopHat: TransferFunctionShape
+
+
+class OptimizationAlgorithm:
+    BoundedBobyqa: OptimizationAlgorithm
+    NelderMead: OptimizationAlgorithm
+
+
+class FitParameter:
+    value: float
+    lower: float
+    upper: float
+    fixed: bool
+
+    def __init__(
+        self,
+        value: float = 0.0,
+        lower: float = 0.0,
+        upper: float = 0.0,
+        fixed: bool = False,
+    ) -> None: ...
+
+
+class TransferFunctionResult:
+    converged: bool
+    offset: float
+    amplitude: float
+    lag: float
+    width: float
+    chi2: float
+    evaluations: int
+    n_valid_points: int
+    message: str
+
+
 class CrossCorrelationMethod:
     Dcf: CrossCorrelationMethod
     Iccf: CrossCorrelationMethod
@@ -344,3 +381,55 @@ def lag_uncertainty(
     flux_randomization: bool = True,
     random_subset: bool = True,
 ) -> Uncertainty: ...
+
+
+def default_transfer_function_parameters(
+    time1: Sequence[float],
+    value1: Sequence[float],
+    error1: Sequence[float],
+    time2: Sequence[float],
+    value2: Sequence[float],
+    error2: Sequence[float],
+    shape: TransferFunctionShape = TransferFunctionShape.Gaussian,
+    grid_step: float = 0.0,
+) -> list[FitParameter]: ...
+
+
+def fit_transfer_function(
+    time1: Sequence[float],
+    value1: Sequence[float],
+    error1: Sequence[float],
+    time2: Sequence[float],
+    value2: Sequence[float],
+    error2: Sequence[float],
+    parameters: Sequence[FitParameter],
+    shape: TransferFunctionShape = TransferFunctionShape.Gaussian,
+    grid_step: float = 0.0,
+    lag_restarts: int = 0,
+    algorithm: OptimizationAlgorithm = OptimizationAlgorithm.BoundedBobyqa,
+    xtol_rel: float = 1e-6,
+    ftol_rel: float = 1e-8,
+    max_evaluations: int = 10000,
+) -> TransferFunctionResult: ...
+
+
+def transfer_function_curve(
+    taus: Sequence[float],
+    shape: TransferFunctionShape,
+    lag: float,
+    width: float,
+) -> list[float]: ...
+
+
+def transfer_function_model_response(
+    time1: Sequence[float],
+    value1: Sequence[float],
+    error1: Sequence[float],
+    response_times: Sequence[float],
+    shape: TransferFunctionShape,
+    offset: float,
+    amplitude: float,
+    lag: float,
+    width: float,
+    grid_step: float = 0.0,
+) -> list[float]: ...

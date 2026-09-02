@@ -143,6 +143,48 @@ endif()
 
 
 # ----------------------------------------------------------------------
+# Optimization dependency (NLopt)
+#
+# agnsf::optimization is a thin generic wrapper around NLopt. NLopt is 
+# found via its CMake config when available; otherwise it is downloaded and built.
+# ----------------------------------------------------------------------
+
+find_package(nlopt CONFIG QUIET)
+
+if(NOT nlopt_FOUND)
+    message(STATUS "nlopt not found; downloading and building it")
+
+    include(FetchContent)
+
+    set(NLOPT_CXX ON CACHE BOOL "" FORCE)
+    set(NLOPT_PYTHON OFF CACHE BOOL "" FORCE)
+    set(NLOPT_TESTS OFF CACHE BOOL "" FORCE)
+    set(NLOPT_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(NLOPT_GUILE OFF CACHE BOOL "" FORCE)
+    set(NLOPT_MATLAB OFF CACHE BOOL "" FORCE)
+    set(NLOPT_OCTAVE OFF CACHE BOOL "" FORCE)
+    set(NLOPT_SWIG OFF CACHE BOOL "" FORCE)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        nlopt
+        GIT_REPOSITORY "https://github.com/stevengj/nlopt.git"
+        GIT_TAG "v2.9.1"
+    )
+
+    FetchContent_MakeAvailable(nlopt)
+endif()
+
+if(TARGET nlopt::nlopt)
+    set(AGNSF_NLOPT_TARGET nlopt::nlopt)
+elseif(TARGET nlopt)
+    set(AGNSF_NLOPT_TARGET nlopt)
+else()
+    message(FATAL_ERROR "nlopt target not found")
+endif()
+
+
+# ----------------------------------------------------------------------
 # Core Library (shared data model; no analysis-specific dependencies)
 # ----------------------------------------------------------------------
 
@@ -157,12 +199,32 @@ target_include_directories(agnsf_core
 
 
 # ----------------------------------------------------------------------
+# Optimization Library (agnsf::optimization; generic, no domain deps)
+# ----------------------------------------------------------------------
+
+add_library(agnsf_optimization
+    src/optimization/optimization.cpp
+)
+
+target_include_directories(agnsf_optimization
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(agnsf_optimization
+    PRIVATE
+        ${AGNSF_NLOPT_TARGET}
+)
+
+
+# ----------------------------------------------------------------------
 # Time-delay Library (agnsf::timedelay; depends on agnsf_core only)
 # ----------------------------------------------------------------------
 
 add_library(agnsf_timedelay
     src/timedelay/cross_correlation.cpp
     src/timedelay/fr_rss.cpp
+    src/timedelay/transfer_function.cpp
 )
 
 target_include_directories(agnsf_timedelay
@@ -173,6 +235,7 @@ target_include_directories(agnsf_timedelay
 target_link_libraries(agnsf_timedelay
     PRIVATE
         agnsf_core
+        agnsf_optimization
 )
 
 
@@ -499,6 +562,36 @@ target_link_libraries(test_cross_correlation
 add_test(
     NAME cross_correlation
     COMMAND test_cross_correlation
+)
+
+
+add_executable(test_optimization
+    tests/test_optimization.cpp
+)
+
+target_link_libraries(test_optimization
+    PRIVATE
+        agnsf_optimization
+)
+
+add_test(
+    NAME optimization
+    COMMAND test_optimization
+)
+
+
+add_executable(test_transfer_function
+    tests/test_transfer_function.cpp
+)
+
+target_link_libraries(test_transfer_function
+    PRIVATE
+        agnsf_timedelay
+)
+
+add_test(
+    NAME transfer_function
+    COMMAND test_transfer_function
 )
 
 
