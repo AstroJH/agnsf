@@ -20,7 +20,7 @@ from .io import (
     write_table,
 )
 from .results import SFArrays, to_arrays
-from . import timedelay
+from . import timedelay, variability
 
 __all__ = [
     "EnsembleMethod",
@@ -44,4 +44,5 @@ __all__ = [
     "SFArrays",
     "to_arrays",
     "timedelay",
+    "variability",
 ]

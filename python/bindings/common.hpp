@@ -198,3 +198,4 @@ void bind_sf(py::module_& m);
 void bind_esf(py::module_& m);
 void bind_io(py::module_& m);
 void bind_timedelay(py::module_& m);
+void bind_variability(py::module_& m);

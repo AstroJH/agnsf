@@ -175,8 +175,13 @@ if(NOT nlopt_FOUND)
     FetchContent_MakeAvailable(nlopt)
 endif()
 
+# NLopt's installed CMake package exports the target as NLopt::nlopt
+# (capital N); the FetchContent build exports plain `nlopt`. Accept
+# either spelling plus nlopt::nlopt.
 if(TARGET nlopt::nlopt)
     set(AGNSF_NLOPT_TARGET nlopt::nlopt)
+elseif(TARGET NLopt::nlopt)
+    set(AGNSF_NLOPT_TARGET NLopt::nlopt)
 elseif(TARGET nlopt)
     set(AGNSF_NLOPT_TARGET nlopt)
 else()
@@ -236,6 +241,25 @@ target_link_libraries(agnsf_timedelay
     PRIVATE
         agnsf_core
         agnsf_optimization
+)
+
+
+# ----------------------------------------------------------------------
+# Variability Library (agnsf::variability; depends on agnsf_core only)
+# ----------------------------------------------------------------------
+
+add_library(agnsf_variability
+    src/variability/variability.cpp
+)
+
+target_include_directories(agnsf_variability
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(agnsf_variability
+    PRIVATE
+        agnsf_core
 )
 
 
@@ -318,12 +342,14 @@ pybind11_add_module(_agnsf
     python/bindings/sf.cpp
     python/bindings/timedelay.cpp
     python/bindings/uncertainty.cpp
+    python/bindings/variability.cpp
 )
 
 target_link_libraries(_agnsf
     PRIVATE
         agnsf_esf
         agnsf_timedelay
+        agnsf_variability
 )
 
 
@@ -592,6 +618,21 @@ target_link_libraries(test_transfer_function
 add_test(
     NAME transfer_function
     COMMAND test_transfer_function
+)
+
+
+add_executable(test_variability
+    tests/test_variability.cpp
+)
+
+target_link_libraries(test_variability
+    PRIVATE
+        agnsf_variability
+)
+
+add_test(
+    NAME variability
+    COMMAND test_variability
 )
 
 

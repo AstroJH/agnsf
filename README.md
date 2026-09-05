@@ -23,7 +23,7 @@
   - [x] Peak and centroid lag estimates
   - [x] FR/RSS uncertainty estimation
   - [x] Transfer-function fitting
-- [ ] Variability amplitude estimation
+- [x] Variability amplitude estimation
 - [ ] Power spectral density (PSD) analysis *(still a long way off)*
 - [x] Python interface through NumPy and pybind11
 - [x] Efficient NumPy interface with zero-copy access for compatible arrays;

@@ -433,3 +433,35 @@ def transfer_function_model_response(
     width: float,
     grid_step: float = 0.0,
 ) -> list[float]: ...
+
+
+class VariabilityResult:
+    n: int
+    valid: bool
+    mean: float
+    weighted_mean: float
+    weighted_mean_error: float
+    stddev: float
+    stddev_error: float
+    peak_to_peak: float
+    peak_to_peak_noise_corrected: float
+    sigma_m: float
+    fvar: float
+    fvar_uncertainty: Uncertainty
+    nxs: float
+    nxs_uncertainty: Uncertainty
+    xs: float
+    xs_uncertainty: Uncertainty
+    chi2: float
+    chi2_dof: float
+    chi2_q: float
+    von_neumann: float
+
+
+def variability_measure(
+    time: Sequence[float],
+    value: Sequence[float],
+    error: Sequence[float],
+    err_sys: float = 0.0,
+    weighted: bool = False,
+) -> VariabilityResult: ...

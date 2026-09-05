@@ -10,4 +10,5 @@ PYBIND11_MODULE(_agnsf, m)
     bind_esf(m);
     bind_io(m);
     bind_timedelay(m);
+    bind_variability(m);
 }
